@@ -39,11 +39,12 @@ public sealed class SdlClientApp
             return 3;
         }
 
+        var flags = _options.Fullscreen ? SDL.WindowFlags.Fullscreen : 0;
         if (!SDL.CreateWindowAndRenderer(
                 $"{_level.Name} — {_options.Nick}",
                 _options.Width,
                 _options.Height,
-                0,
+                flags,
                 out var window,
                 out var renderer))
         {

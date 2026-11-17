@@ -1,40 +1,87 @@
-# Backrooms — C# runtime/level-pack foundation
+# Backrooms Infinity
 
-A source repository for a moddable Backrooms game built around:
+A moddable Backrooms game/runtime built with C# / .NET 10, SDL3, WebGPU (Silk.NET), Assimp, JoltPhysicsSharp, ImGui.NET and Lua/MoonSharp.
 
-- C# / .NET 10
-- SDL3 platform shell
-- WebGPU boundary through Silk.NET.WebGPU
-- Assimp boundary through Silk.NET.Assimp
-- JoltPhysicsSharp boundary
-- ImGui.NET debug-panel model
-- Lua through MoonSharp
-- ZIP level packs with XML + `models/`, `textures/`, `shaders/`, `scripts/`
+The repository is licensed under **PolyForm Noncommercial 1.0.0**. Launcher and client are separate executable projects; low-level third-party APIs stay behind engine boundaries so level/game logic remains small and AI-friendly.
 
-The repository intentionally keeps third-party APIs behind small engine boundaries so game code and AI-assisted edits do not spread SDL/WebGPU/Assimp/Jolt calls throughout the project.
+## Repository layout
 
-## Projects
+- `src/Backrooms.Launcher` — menu, animated backgrounds/ambience, online level catalog, downloads, settings, authors, client startup/loading screen.
+- `src/Backrooms.Client` — level ZIP loading, validation, Lua/init execution, generation planning and game window.
+- `src/Backrooms.Engine` — level format, Lua API, generation, diagnostics, rendering/model/physics boundaries.
+- `levels.db.zip` — ZIP containing SQLite `levels.db`, table `levels(download_link, preview, name)`.
+- `.github/workflows/update-levels-db.yml` — manual catalog updater.
+- `.github/workflows/release.yml` — manual tagged release.
+- `installer.ps1` / `installer.sh` — install latest (or selected tag) release into the per-user game directory.
+- `docs/` — level/Lua/API/architecture/release documentation.
 
-`Backrooms.Launcher` and `Backrooms.Client` are separate executable projects. `Backrooms.Engine` is the shared class library.
+## User data directory
 
-The launcher starts the client and passes the level ZIP, nickname, optional skin, and settings through command-line arguments.
+Windows:
 
-## Important implementation status
+```text
+%APPDATA%/.backrooms_infinity/
+```
 
-The level ZIP format, XML parser/validation, Lua sandbox/API, generator plans, diagnostics bus, F3 debugger state, client/launcher process split, CI/release workflows, and supplied assets are implemented as source.
+Linux/macOS:
 
-The actual 3D WebGPU draw pipeline, ImGui SDL/WebGPU backend, Assimp mesh upload, Jolt body creation, and launcher image/audio compositor are intentionally isolated behind boundary classes and are not presented as finished production rendering code. The current SDL shell opens and runs, while those backend integrations are the next implementation layer. This keeps the architecture honest and prevents low-level binding code from contaminating the level/runtime APIs.
+```text
+~/.backrooms_infinity/
+```
+
+Layout:
+
+```text
+.backrooms_infinity/
+├── levels/       downloaded level ZIPs: {display name}.zip
+├── models/       user/runtime model storage
+├── settings/     settings.json
+├── game/         unpacked GitHub release contents
+├── assets/       launcher PNG/MP3, VHS font and FONT-COPYRIGHT.txt
+├── logs/         launcher/client logs
+├── cache/        levels.db.zip and preview cache
+└── temp/         temporary files
+```
+
+`AppPaths.ResolveAsset()` prefers `~/.backrooms_infinity/assets` / `%APPDATA%/.../assets`, then falls back to assets beside the executable for development builds.
+
+## Launcher
+
+The main menu uses the bundled VHS font for all text and centers four buttons:
+
+- **Одиночная игра**
+- **Сетевая игра** — currently shows “not implemented”.
+- **Настройки**
+- **Авторы**
+
+The background continuously pans/zooms through the supplied images and plays the matching ambience through SDL_mixer.
+
+Singleplayer downloads:
+
+```text
+https://raw.githubusercontent.com/Endlad2/Backrooms-Infinity/main/levels.db.zip
+```
+
+while displaying a loading indicator. Each catalog row becomes a preview card; the level name is rendered in the lower-right corner. Already downloaded levels show green **Готов** in the upper-left corner. Preview images are cached.
+
+Clicking a card downloads an absent level to `levels/{name}.zip`, then starts the client. The client immediately opens its log and performs ZIP/XML/Lua/generation preparation without creating the game window. Structured startup stages are streamed over redirected stdout/stderr to the still-visible launcher. The launcher shows the level name, current stage and a Minecraft-Bedrock-inspired loading panel over the same moving background/ambience. When the client emits its READY marker and creates the game window, the launcher hides until the client exits.
+
+## Contributors / “Авторы”
+
+`tools/Backrooms.ContributorsGen` is a build-time tool. Before launcher compilation it runs `git shortlog`, calculates every contributor's commit count, sorts descending, serializes the result to JSON and embeds that JSON into generated `Contributors.g.cs`. No runtime GitHub request is required by the Authors screen.
+
+CI/release checkout uses full Git history (`fetch-depth: 0`) so the counts include repository history.
 
 ## Build
 
-Install the .NET 10 SDK, then:
+Install .NET 10 SDK:
 
 ```bash
 dotnet restore Backrooms.sln
 dotnet build Backrooms.sln -c Release
 ```
 
-Run the client:
+Example direct client run:
 
 ```bash
 dotnet run --project src/Backrooms.Client -- \
@@ -42,74 +89,34 @@ dotnet run --project src/Backrooms.Client -- \
   --nick wanderer
 ```
 
-Run the launcher:
+Example launcher run:
 
 ```bash
-dotnet run --project src/Backrooms.Launcher -- \
-  --level examples/ExampleLevel.brlevel.zip \
-  --nick wanderer
+dotnet run --project src/Backrooms.Launcher
 ```
 
-The client also accepts the level ZIP as the first positional argument.
+### Bundled catalog level
 
-## Level pack
+The repository ships `levels/Level-0.zip`, an infinite 64x64-chunk Level 0 pack with eight deterministic chunk templates (seven office/maze variants plus one real pit-grid template). Its catalog preview is `levels/previews/level-0.jpg`, and `levels.db.zip` points to both files through `raw.githubusercontent.com` URLs.
 
-A level is a ZIP containing `level.xml` and optional `models/`, `textures/`, `shaders/`, `scripts/`.
+## Level packs
 
-See:
+A level is a ZIP containing `level.xml` and optional `models/`, `textures/`, `shaders/`, `scripts/`. Object/model IDs share one namespace. Entity positions are relative to the **center of the chunk**. `<script class="init">` runs before generation and controls finite/grid/axis/custom generation strategies.
 
-- `docs/LEVEL_FORMAT.md`
-- `docs/LUA_API.md`
-- `docs/ARCHITECTURE.md`
-- `docs/DEBUGGER.md`
-- `examples/ExampleLevel/`
+See `docs/LEVEL_FORMAT.md` and `docs/LUA_API.md` for the full format/API.
 
-## Coordinate rule
+## Rendering status
 
-Every entity position in XML is local to the **center of its chunk**.
+The level format, parser, Lua sandbox/API, generation strategies, diagnostics/F3 state, process split, catalog/download flow, launcher UI/media layer, installers and CI/release/catalog workflows are implemented as source. The actual production 3D WebGPU renderer, full ImGui backend, Assimp GPU mesh upload and Jolt world integration remain isolated boundary layers intended for the next engine implementation phase; the project does not pretend those stubs are a finished 3D game renderer.
 
-For a chunk placed at grid coordinate `(cx, cy, cz)` and `chunks size="16"`:
+## Supplied font/media
+
+The requested VCR OSD Mono Russian/VHS icon font and supplied launcher media are retained. Font attribution is copied to releases and installed assets as `FONT-COPYRIGHT.txt`:
 
 ```text
-worldPosition = (cx * 16, cy * 16, cz * 16) + localPosition
+Author: MrManet
+RUS: Daymarius
+VHS icons: DENIRO_pro
 ```
 
-## Entity IDs
-
-`<object>` and `<model>` share one global XML ID namespace. This is invalid:
-
-```xml
-<object id="door" ... />
-<model id="door" ... />
-```
-
-Scripts never need to care whether an ID points to a primitive or imported model.
-
-## Default generation
-
-Without `<script class="init">`, generation defaults to an infinite X/Z grid.
-
-The init Lua script can select:
-
-- grid generation;
-- finite explicit placements;
-- infinite generation on X, Y or Z (for stairs/elevators/towers);
-- fully custom Lua placement planning.
-
-## Debugger
-
-Errors from the level parser, Lua execution, engine subsystems, and backend probes are pushed to one diagnostics bus. An error automatically opens debugger state; F3 toggles it manually.
-
-The `ImGuiDebugPanel` is already separated from the diagnostics model so it can be drawn by the final SDL/WebGPU ImGui backend without changing engine logic.
-
-## Assets supplied with this project
-
-The launcher asset directory contains the three PNGs and three matching MP3 files supplied with the request. The VCR OSD Mono Russian/VHS icon font is copied into both launcher and client output assets.
-
-Before public redistribution, verify that you have redistribution rights for all supplied media/font assets.
-
-## License
-
-Repository source: PolyForm Noncommercial License 1.0.0.
-
-See `LICENSE`.
+Verify redistribution rights for all third-party/supplied media before a public release.

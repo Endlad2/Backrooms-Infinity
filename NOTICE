@@ -1,6 +1,13 @@
-Backrooms client/launcher source code:
+Backrooms Infinity client/launcher source code:
 PolyForm Noncommercial License 1.0.0.
 
 Third-party libraries remain under their own licenses.
-Launcher media and the supplied font were provided as project inputs; verify that
-you have the rights required to redistribute those assets before publishing a release.
+
+Supplied VHS font attribution (from the original COPYRIGHT.txt):
+Author: MrManet
+RUS: Daymarius
+VHS icons: DENIRO_pro
+
+Launcher media and the supplied font were provided as project inputs. Verify that
+you have the rights required to redistribute all supplied media/font assets before
+publishing a public release.

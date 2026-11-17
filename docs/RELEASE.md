@@ -1,33 +1,36 @@
-# CI and releases
+# CI, catalog and releases
 
 ## CI
 
-`.github/workflows/ci.yml` restores and builds the solution on pushes and pull requests.
+`.github/workflows/ci.yml` checks the SQLite schema in `levels.db.zip`, restores and builds the .NET 10 solution. Checkout uses full history because the launcher build generates contributor counts from Git history.
+
+## Catalog update
+
+`.github/workflows/update-levels-db.yml` is manual (`workflow_dispatch`) with inputs:
+
+```text
+name
+preview
+download_link
+```
+
+It UPSERTs the row into the root `levels.db.zip` and pushes the result to `main`.
 
 ## Manual release
 
-`.github/workflows/release.yml` uses `workflow_dispatch`.
-
-Input:
+`.github/workflows/release.yml` is manual and accepts:
 
 ```text
 tag = v0.1.0
 ```
 
-The workflow publishes launcher + client into the same directory for:
+It publishes launcher + client into one **self-contained** directory for:
 
 - win-x64
 - linux-x64
 - osx-x64
 - osx-arm64
 
-It archives each runtime and creates a GitHub Release for the supplied tag.
+Each runtime becomes `Backrooms-<rid>.zip`. The workflow also attaches `installer.ps1` and `installer.sh`, then creates the GitHub Release for the supplied tag.
 
-The workflow intentionally publishes source-built artifacts; it does not sign executables.
-
-## Local publish
-
-```bash
-dotnet publish src/Backrooms.Launcher -c Release -r win-x64 --self-contained false -o artifacts/publish/win-x64
-dotnet publish src/Backrooms.Client   -c Release -r win-x64 --self-contained false -o artifacts/publish/win-x64
-```
+Self-contained artifacts are intentional: the installers can put `game/` on a clean machine without a preinstalled .NET runtime.

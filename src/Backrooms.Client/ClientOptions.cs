@@ -7,7 +7,8 @@ public sealed record ClientOptions(
     int Width,
     int Height,
     bool Fullscreen,
-    bool Debug)
+    bool Debug,
+    bool LauncherHandshake)
 {
     public static ClientOptions Parse(string[] args)
     {
@@ -18,6 +19,7 @@ public sealed record ClientOptions(
         var height = 720;
         var fullscreen = false;
         var debug = false;
+        var launcherHandshake = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -45,6 +47,7 @@ public sealed record ClientOptions(
                 case "--height": height = int.Parse(Next()); break;
                 case "--fullscreen": fullscreen = true; break;
                 case "--debug": debug = true; break;
+                case "--launcher-handshake": launcherHandshake = true; break;
                 case "--help":
                 case "-h":
                     throw new HelpRequestedException();
@@ -56,7 +59,7 @@ public sealed record ClientOptions(
         if (string.IsNullOrWhiteSpace(level))
             throw new ArgumentException("A level ZIP is required. Use --level <path.zip>.");
 
-        return new ClientOptions(Path.GetFullPath(level), nick, skin, width, height, fullscreen, debug);
+        return new ClientOptions(Path.GetFullPath(level), nick, skin, width, height, fullscreen, debug, launcherHandshake);
     }
 
     public static string HelpText => """
@@ -68,6 +71,7 @@ Backrooms.Client
   --height <px>         Window height (default 720)
   --fullscreen          Fullscreen mode
   --debug               Open debugger on startup
+  --launcher-handshake  Emit structured startup stages to stdout
   F3                    Toggle debugger while running
 """;
 }

@@ -1,112 +1,58 @@
 # Architecture
 
-## Goals
-
-The project uses dependency boundaries. Game/level code talks to engine interfaces, not directly to SDL3, WebGPU, Assimp, Jolt or ImGui.
+## Process model
 
 ```text
-Backrooms.Launcher.exe
-        |
-        +---- launches ----> Backrooms.Client.exe
-                               |
-                               v
-                       Backrooms.Engine
-                   /       |      |      \
-              Levels     Lua    Runtime  Diagnostics
-                 |         |       |         |
-              Assimp    UI/API   World     ImGui panel
-                         |
-                       IRenderer
-                         |
-                      WebGPU
+Backrooms.Launcher
+  |-- SDL3 + SDL_image + SDL_ttf + SDL_mixer
+  |-- levels.db.zip -> SQLite catalog
+  |-- preview / level downloader
+  |-- loading UI + ambient background
+  |
+  +-- Process.Start(Backrooms.Client, redirected stdout/stderr)
+          |
+          |  @@BACKROOMS_STAGE:<text>
+          |  normal log lines
+          |  @@BACKROOMS_READY
+          v
+Backrooms.Client
+  |-- creates log immediately
+  |-- opens/validates level ZIP + XML
+  |-- creates Lua/world/render/physics boundaries
+  |-- runs init Lua and plans chunks
+  |-- emits READY
+  +-- creates SDL game window only after startup preparation
+          |
+          v
+Backrooms.Engine
 ```
 
-## Executables
+The launcher remains visible during client preparation. When READY arrives, the launcher hides; when the client exits it is shown again. This avoids a blank hidden period while preserving two independent binaries.
 
-### Backrooms.Launcher
+## User-data boundary
 
-Responsibilities:
+`Backrooms.Engine.Platform.AppPaths` is the single source of truth for per-user storage. Windows uses `%APPDATA%/.backrooms_infinity`; Unix-like systems use `~/.backrooms_infinity`.
 
-- main menu process;
-- background media playlist;
-- player nickname/settings;
-- level selection path;
-- starts the client through `Process.Start`;
-- never loads level scripts itself.
+Installers unpack release files into `game/`. Runtime-downloaded level ZIPs go to `levels/`. Launcher media/font attribution are mirrored to `assets/`. Settings, logs, caches and temp files have dedicated directories.
 
-### Backrooms.Client
+## Engine boundaries
 
-Responsibilities:
+Game/level logic does not call SDL/WebGPU/Assimp/Jolt directly. Stable boundaries isolate native APIs:
 
-- opens the level ZIP;
-- validates/parses XML;
-- creates Lua sandbox;
-- executes init script before chunk generation;
-- owns runtime world, rendering, physics, UI and event dispatch;
-- owns debugger state.
+- `IRenderer` / `WebGpuRendererBoundary`
+- `AssimpModelImporterBoundary`
+- `JoltPhysicsBoundary`
+- runtime `UiState` + debug overlay model
+- `LevelPackage` / `LevelParser`
+- `LuaHost`
+- `GeneratorPlan` / `ChunkPlanner`
 
-## Backrooms.Engine boundaries
+Level Lua is a soft sandbox and does **not** automatically receive arbitrary filesystem/process/network capabilities, even though the native .NET game executable itself can use those capabilities.
 
-### Levels
+## Chunk coordinates
 
-`LevelPackage` never extracts arbitrary ZIP entries. Assets are normalized and `..` traversal is rejected.
+XML positions are local to the center of a chunk. Placement converts local positions using the generator's chunk coordinate and `<chunks size="...">`.
 
-`LevelParser` validates:
+## Entity namespace
 
-- root `<level>`;
-- level name;
-- `<chunks size>`;
-- chunk IDs;
-- global object/model ID uniqueness;
-- model extensions;
-- referenced asset existence;
-- target IDs for chunk-level texture/shader bindings.
-
-### Runtime
-
-`RuntimeWorld` holds runtime entities. Template IDs are converted to instance IDs such as:
-
-```text
-room_a@12,0,-7/door
-```
-
-Lua can still resolve `door` when only one matching runtime entity is relevant.
-
-### Generation
-
-`GeneratorPlan` contains only data/strategy. `ChunkPlanner` does not know XML or SDL.
-
-This makes it possible to replace generation without rewriting streaming/rendering.
-
-### Scripting
-
-MoonSharp uses `CoreModules.Preset_SoftSandbox`; level scripts do not get arbitrary file/process/network access by default.
-
-The engine itself can still launch processes and use network APIs because the client is a normal .NET desktop process. That power is deliberately **not** exposed automatically to untrusted level Lua.
-
-### Rendering
-
-`IRenderer` is the stable game-facing API.
-
-`WebGpuRendererBoundary` is the only place intended to know Silk.NET.WebGPU. A production renderer should add:
-
-- adapter/device/surface creation;
-- SDL3 native-window -> WebGPU surface bridge;
-- swapchain/surface configuration;
-- vertex/index/uniform buffers;
-- texture upload;
-- WGSL pipeline cache;
-- render/compute passes;
-- shader hot reload.
-
-### Assets / Assimp
-
-`AssimpModelImporterBoundary` is the designated place for OBJ/FBX/glTF/GLB decoding and conversion to the engine mesh representation.
-
-### Physics / Jolt
-
-`JoltPhysicsBoundary` is the designated place for world creation, body/shape handles, raycasts, triggers and character controller integration.
-
-### UI / ImGui
-
-Gameplay UI state is data (`UiState`). Debug UI has `ImGuiDebugPanel`, so scripts and gameplay never depend on ImGui directly.
+Primitive `<object>` and imported `<model>` definitions share one global level-ID namespace. Script targets use IDs without needing to know which kind of entity owns the ID.

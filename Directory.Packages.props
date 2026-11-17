@@ -7,6 +7,16 @@
     <PackageVersion Include="SDL3-CS.Windows" Version="3.4.20" />
     <PackageVersion Include="SDL3-CS.Linux" Version="3.4.20" />
     <PackageVersion Include="SDL3-CS.MacOS" Version="3.4.20" />
+    <PackageVersion Include="SDL3-CS.Windows.Image" Version="3.4.8.1" />
+    <PackageVersion Include="SDL3-CS.Linux.Image" Version="3.4.8.1" />
+    <PackageVersion Include="SDL3-CS.MacOS.Image" Version="3.4.8.1" />
+    <PackageVersion Include="SDL3-CS.Windows.TTF" Version="3.2.2.15" />
+    <PackageVersion Include="SDL3-CS.Linux.TTF" Version="3.2.2.15" />
+    <PackageVersion Include="SDL3-CS.MacOS.TTF" Version="3.2.2.15" />
+    <PackageVersion Include="SDL3-CS.Windows.Mixer" Version="3.2.4.15" />
+    <PackageVersion Include="SDL3-CS.Linux.Mixer" Version="3.2.4.15" />
+    <PackageVersion Include="SDL3-CS.MacOS.Mixer" Version="3.2.4.15" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="11.0.0" />
     <PackageVersion Include="Silk.NET.WebGPU" Version="2.23.0" />
     <PackageVersion Include="Silk.NET.Assimp" Version="2.23.0" />
     <PackageVersion Include="JoltPhysicsSharp" Version="2.23.0" />

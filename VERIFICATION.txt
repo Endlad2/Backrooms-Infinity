@@ -1,11 +1,24 @@
-Generated from the supplied context bundle.
+Built from the previously supplied BackroomsProject-ready.zip and the original
+context bundle assets.
 
 Validated before packaging:
-- supplied font bytes preserved exactly
-- supplied launcher PNG/MP3 bytes preserved exactly
-- example level.xml is well-formed XML
+- supplied VHS font bytes match the original font ZIP SHA-256 exactly
+- original font COPYRIGHT.txt attribution is retained as assets/common/FONT-COPYRIGHT.txt
+- supplied launcher PNG/MP3 assets are retained from the previous project archive
+- levels.db.zip is a valid ZIP containing SQLite levels.db
+- SQLite table column order is exactly: download_link, preview, name
+- all .csproj / MSBuild XML files parse as XML
+- all GitHub Actions workflow YAML files parse successfully
+- installer.sh passes `sh -n`
 - example level ZIP opens successfully
-- GitHub Actions YAML parses successfully
+- final project ZIP is checked with ZipFile.testzip()
 
-This environment does not contain the .NET SDK, so a local dotnet build could not
-be executed here. The included CI workflow performs restore/build with .NET 10.
+The sandbox used to assemble this archive does not contain a .NET SDK/compiler,
+so `dotnet build` could not be executed locally here. The included CI workflow
+restores/builds with .NET 10 and validates levels.db.zip on GitHub Actions.
+
+Level 0 pack verification
+- levels/Level-0.zip contains level.xml, scripts/init.lua, and procedural textures.
+- level.xml declares chunks size=64 and 8 chunk templates.
+- pit_grid uses omitted floor tiles for actual gaps.
+- levels.db.zip includes Level 0 with raw.githubusercontent.com download and preview URLs.

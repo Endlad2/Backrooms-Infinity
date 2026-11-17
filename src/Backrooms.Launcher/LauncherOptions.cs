@@ -1,11 +1,11 @@
 namespace Backrooms.Launcher;
 
-public sealed record LauncherOptions(string? LevelZip, string Nick, string? Skin)
+public sealed record LauncherOptions(string? LevelZip, string? Nick, string? Skin)
 {
     public static LauncherOptions Parse(string[] args)
     {
         string? level = null;
-        var nick = "wanderer";
+        string? nick = null;
         string? skin = null;
 
         for (var i = 0; i < args.Length; i++)

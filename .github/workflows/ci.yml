@@ -13,10 +13,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+
+      - name: Validate levels.db.zip
+        run: |
+          python3 - <<'PY'
+          import sqlite3, tempfile, zipfile
+          from pathlib import Path
+          with tempfile.TemporaryDirectory() as td:
+              db = Path(td) / "levels.db"
+              with zipfile.ZipFile("levels.db.zip") as zf:
+                  db.write_bytes(zf.read("levels.db"))
+              con = sqlite3.connect(db)
+              cols = [r[1] for r in con.execute("PRAGMA table_info(levels)")]
+              assert cols == ["download_link", "preview", "name"], cols
+              con.execute("SELECT download_link, preview, name FROM levels LIMIT 1").fetchall()
+              con.close()
+          PY
 
       - name: Restore
         run: dotnet restore Backrooms.sln
