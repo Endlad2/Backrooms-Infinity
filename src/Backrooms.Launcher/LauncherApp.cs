@@ -588,7 +588,7 @@ public sealed class LauncherApp : IDisposable
             return JsonSerializer.Deserialize<List<Contributor>>(GeneratedContributors.Json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
-            }) ?? Array.Empty<Contributor>();
+            }) ?? new List<Contributor>();
         }
         catch
         {
