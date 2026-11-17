@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Backrooms.Launcher</RootNamespace>
+    <AssemblyName>Backrooms.Launcher</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Backrooms.Engine/Backrooms.Engine.csproj" />
+    <PackageReference Include="SDL3-CS" />
+    <PackageReference Include="SDL3-CS.Windows" />
+    <PackageReference Include="SDL3-CS.Linux" />
+    <PackageReference Include="SDL3-CS.MacOS" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="../../assets/common/vcrosdmonorus_vhsicons.ttf">
+      <Link>assets/vcrosdmonorus_vhsicons.ttf</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="../../assets/launcher/**/*">
+      <Link>assets/launcher/%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

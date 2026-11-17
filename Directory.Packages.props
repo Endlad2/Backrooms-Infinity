@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="SDL3-CS" Version="3.4.20" />
+    <PackageVersion Include="SDL3-CS.Windows" Version="3.4.20" />
+    <PackageVersion Include="SDL3-CS.Linux" Version="3.4.20" />
+    <PackageVersion Include="SDL3-CS.MacOS" Version="3.4.20" />
+    <PackageVersion Include="Silk.NET.WebGPU" Version="2.23.0" />
+    <PackageVersion Include="Silk.NET.Assimp" Version="2.23.0" />
+    <PackageVersion Include="JoltPhysicsSharp" Version="2.23.0" />
+    <PackageVersion Include="ImGui.NET" Version="1.91.6.1" />
+    <PackageVersion Include="MoonSharp" Version="2.0.0" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Backrooms.Engine</RootNamespace>
+    <AssemblyName>Backrooms.Engine</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.WebGPU" />
+    <PackageReference Include="Silk.NET.Assimp" />
+    <PackageReference Include="JoltPhysicsSharp" />
+    <PackageReference Include="ImGui.NET" />
+    <PackageReference Include="MoonSharp" />
+  </ItemGroup>
+</Project>

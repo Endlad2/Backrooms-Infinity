@@ -1,0 +1,86 @@
+name: Manual release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-15
+            rid: osx-x64
+          - os: macos-15
+            rid: osx-arm64
+
+    runs-on: ${{ matrix.os }}
+    env:
+      RID: ${{ matrix.rid }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish launcher
+        run: dotnet publish src/Backrooms.Launcher/Backrooms.Launcher.csproj -c Release -r ${{ matrix.rid }} --self-contained false -o artifacts/publish/${{ matrix.rid }}
+
+      - name: Publish client
+        run: dotnet publish src/Backrooms.Client/Backrooms.Client.csproj -c Release -r ${{ matrix.rid }} --self-contained false -o artifacts/publish/${{ matrix.rid }}
+
+      - name: Add docs and license
+        shell: pwsh
+        run: |
+          Copy-Item README.md "artifacts/publish/$env:RID/README.md"
+          Copy-Item LICENSE "artifacts/publish/$env:RID/LICENSE"
+          Copy-Item NOTICE "artifacts/publish/$env:RID/NOTICE"
+          Copy-Item docs "artifacts/publish/$env:RID/docs" -Recurse
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          $zip = "artifacts/Backrooms-$env:RID.zip"
+          Compress-Archive -Path "artifacts/publish/$env:RID/*" -DestinationPath $zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.rid }}
+          path: artifacts/Backrooms-${{ matrix.rid }}.zip
+          if-no-files-found: error
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release create "$TAG" artifacts/*.zip \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes

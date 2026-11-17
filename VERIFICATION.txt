@@ -1,0 +1,11 @@
+Generated from the supplied context bundle.
+
+Validated before packaging:
+- supplied font bytes preserved exactly
+- supplied launcher PNG/MP3 bytes preserved exactly
+- example level.xml is well-formed XML
+- example level ZIP opens successfully
+- GitHub Actions YAML parses successfully
+
+This environment does not contain the .NET SDK, so a local dotnet build could not
+be executed here. The included CI workflow performs restore/build with .NET 10.
