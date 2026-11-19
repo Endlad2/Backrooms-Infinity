@@ -78,7 +78,7 @@ public sealed partial class MainController : Node
         var settings = GodotTheme.Button("НАСТРОЙКИ", 420); settings.Pressed += ShowMainSettings; menu.AddChild(settings);
         var authors = GodotTheme.Button("АВТОРЫ", 420); authors.Pressed += ShowAuthors; menu.AddChild(authors);
 
-        var hint = GodotTheme.Label("F3 — debugger   •   ZIP/XML/Lua levels   •   Godot 4.7.2 .NET", 16, HorizontalAlignment.Center);
+        var hint = GodotTheme.Label("F3 — debugger   •   ZIP/XML/Lua/GDScript levels   •   Godot 4.7.2 .NET", 16, HorizontalAlignment.Center);
         hint.AnchorLeft = 0; hint.AnchorRight = 1; hint.AnchorTop = 1; hint.AnchorBottom = 1; hint.OffsetTop = -44; hint.OffsetBottom = -12; _screen.AddChild(hint);
     }
 
@@ -97,7 +97,7 @@ public sealed partial class MainController : Node
 
         try
         {
-            _catalog ??= new LevelCatalogService();
+            _catalog ??= new LevelCatalogService(_diagnostics);
             var levels = await _catalog.LoadAsync(_screenCts!.Token);
             if (_screenCts.IsCancellationRequested) return;
             status.Text = $"Уровней: {levels.Count}";
@@ -150,7 +150,7 @@ public sealed partial class MainController : Node
         ShowLoading(level.Name, "Подготовка загрузки…", 0.02f, out var stage, out var progress);
         try
         {
-            _catalog ??= new LevelCatalogService();
+            _catalog ??= new LevelCatalogService(_diagnostics);
             string path;
             try
             {
@@ -171,7 +171,7 @@ public sealed partial class MainController : Node
             stage.Text = "Распаковываем runtime-ресурсы…"; progress.Value = 62;
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             _extraction = new LevelExtraction(_package);
-            stage.Text = "Lua init / стратегия генерации…"; progress.Value = 76;
+            stage.Text = "Lua/GDScript init / стратегия генерации…"; progress.Value = 76;
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             _game = new GameWorld(_package, _extraction, _diagnostics, _settings);
             _game.ReturnToMenuRequested += ShowMainMenu;

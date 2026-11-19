@@ -1,25 +1,25 @@
-Backrooms Infinity — verification notes
+Backrooms Infinity — verification notes for this archive
 
-Validated in this workspace:
-- repository static validator passes;
-- exactly one C# project: Backrooms.Infinity.csproj;
-- project.godot starts Main.tscn;
-- no Backrooms.Launcher / Backrooms.Client project or game-specific --headless implementation exists in src/;
-- F3 debugger is wired through DiagnosticBus/DebugOverlayState and auto-opens on Error;
-- all Level-0.zip through Level-49.zip pass ZIP integrity checks and their level.xml parses;
-- each level keeps one unified object/model ID namespace;
-- levels.db.zip contains a readable levels.db with columns download_link, preview, name and 50 rows;
-- data/catalog.json mirrors the SQLite catalog;
-- GitHub Actions YAML parses;
-- installer.sh passes sh -n;
-- C# sources pass lexical delimiter/string/comment balance checks;
-- runtime glTF/GLB and FBX API names were checked against Godot 4.7 documentation; OBJ is handled by the included SurfaceTool loader.
+Changes in this revision
+- Fixed the Godot/.NET SQLite runtime failure path that previously raised FileNotFoundException for Microsoft.Data.Sqlite 8.0.11.
+- Backrooms.Infinity.csproj now sets EnableDynamicLoading=true and CopyLocalLockFileAssemblies=true so NuGet managed/native runtime dependencies are copied for Godot.
+- LevelCatalogService still downloads levels.db.zip first, but if SQLite runtime dependencies cannot be loaded it automatically uses the mirrored raw GitHub data/catalog.json; cached and bundled JSON fallbacks are also supported.
+- SQLite parsing was isolated in SqliteCatalogReader so a missing SQLite assembly does not prevent the rest of the catalog service from loading.
+- XML script language is now explicit and mandatory: type="lua" or type="gdscript".
+- Existing 50 bundled levels were migrated to type="lua".
+- Runtime GDScript support was added through Godot.GDScript SourceCode -> Reload() -> New() -> run(ctx).
+- Lua remains the preferred content scripting language. GDScript has a documented context bridge for diagnostics, generation, world, UI and shader controls.
+- Added docs/GDSCRIPT_API.md and updated level-format/Lua/debugger/architecture documentation.
+- CI now checks that Microsoft.Data.Sqlite, SQLite native runtime, and MoonSharp runtime files are present after Debug build.
 
-Environment limitation:
-The local sandbox does not contain the .NET SDK or Godot executable and does not allow downloading them, so a real local dotnet build / Godot Debug launch could not be executed here. CI is configured to perform restore, Debug+Release builds, Godot import, and a startup smoke test with the official Godot 4.7.2 .NET editor.
+Checks performed in this environment
+- tools/validate_repo.py: PASS
+- All Level-0..49 ZIP files opened and passed CRC validation through the repository validator.
+- All 50 level.xml files parse as XML and every <script> has a valid explicit type. Existing sources are .lua and use type="lua".
+- levels.db.zip parses with Python sqlite3; schema remains download_link, preview, name; 50 rows match data/catalog.json.
+- GitHub Actions YAML parses with PyYAML.
+- Backrooms.Infinity.csproj parses as XML.
+- Final project ZIP integrity is checked after packaging.
 
-Compile-fix pass (2026-11-19):
-- Renamed Backrooms.Engine.Math -> Backrooms.Engine.Mathematics so System.Math is no longer shadowed.
-- Wrapped Godot CheckBox.Toggled callbacks instead of attaching Action<bool> directly.
-- Wrapped the optional Action used by message OK buttons instead of attaching Action directly to BaseButton.Pressed.
-- tools/validate_repo.py now rejects regressions of these three compile blockers.
+Environment limitation
+This sandbox does not contain the .NET SDK or the Godot .NET editor binary, so a real dotnet build / Godot runtime launch cannot be executed locally here. The repository CI performs those real build/import/startup checks on GitHub Actions. The source changes were therefore additionally guarded by repository validation and CI runtime-dependency assertions.

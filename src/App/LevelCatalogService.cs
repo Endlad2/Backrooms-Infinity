@@ -1,8 +1,7 @@
-using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
-using Microsoft.Data.Sqlite;
+using Backrooms.Engine.Diagnostics;
 using Backrooms.Engine.Platform;
 
 namespace Backrooms.Infinity.App;
@@ -16,10 +15,14 @@ public sealed record LevelCatalogEntry(string DownloadLink, string Preview, stri
 public sealed class LevelCatalogService : IDisposable
 {
     public static readonly Uri CatalogUri = new("https://raw.githubusercontent.com/Endlad2/Backrooms-Infinity/main/levels.db.zip");
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    public static readonly Uri CatalogJsonUri = new("https://raw.githubusercontent.com/Endlad2/Backrooms-Infinity/main/data/catalog.json");
 
-    public LevelCatalogService()
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private readonly DiagnosticBus? _diagnostics;
+
+    public LevelCatalogService(DiagnosticBus? diagnostics = null)
     {
+        _diagnostics = diagnostics;
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Backrooms-Infinity-Godot", "1.0"));
     }
 
@@ -32,45 +35,78 @@ public sealed class LevelCatalogService : IDisposable
             bytes = await _http.GetByteArrayAsync(CatalogUri, ct);
             await File.WriteAllBytesAsync(Path.Combine(AppPaths.Cache, "levels.db.zip"), bytes, ct);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             var cached = Path.Combine(AppPaths.Cache, "levels.db.zip");
             if (File.Exists(cached))
                 bytes = await File.ReadAllBytesAsync(cached, ct);
             else
-                return await LoadBundledJsonAsync(ct);
+            {
+                _diagnostics?.Warn("Catalog", "levels.db.zip unavailable; falling back to JSON catalog.", ex.Message);
+                return await LoadJsonWithFallbackAsync(ct);
+            }
         }
 
-        return await ParseDatabaseZipAsync(bytes, ct);
-    }
-
-    private static async Task<IReadOnlyList<LevelCatalogEntry>> ParseDatabaseZipAsync(byte[] bytes, CancellationToken ct)
-    {
-        var dbPath = Path.Combine(AppPaths.Temp, $"levels-{Guid.NewGuid():N}.db");
         try
         {
-            using (var zip = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read))
+            return await SqliteCatalogReader.ParseDatabaseZipAsync(bytes, ct);
+        }
+        catch (Exception ex) when (IsSqliteRuntimeFailure(ex))
+        {
+            _diagnostics?.Warn(
+                "Catalog",
+                "SQLite runtime dependency is unavailable. Using the mirrored JSON catalog instead.",
+                ex.ToString());
+            return await LoadJsonWithFallbackAsync(ct);
+        }
+    }
+
+    private async Task<IReadOnlyList<LevelCatalogEntry>> LoadJsonWithFallbackAsync(CancellationToken ct)
+    {
+        var cachedJson = Path.Combine(AppPaths.Cache, "catalog.json");
+        try
+        {
+            var bytes = await _http.GetByteArrayAsync(CatalogJsonUri, ct);
+            await File.WriteAllBytesAsync(cachedJson, bytes, ct);
+            return DeserializeCatalog(bytes);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            if (File.Exists(cachedJson))
             {
-                var entry = zip.GetEntry("levels.db") ?? throw new InvalidDataException("levels.db.zip does not contain levels.db");
-                await using var input = entry.Open();
-                await using var output = File.Create(dbPath);
-                await input.CopyToAsync(output, ct);
+                try
+                {
+                    return DeserializeCatalog(await File.ReadAllBytesAsync(cachedJson, ct));
+                }
+                catch (Exception cachedEx)
+                {
+                    _diagnostics?.Warn("Catalog", "Cached JSON catalog is invalid; trying bundled catalog.", cachedEx.Message);
+                }
             }
 
-            var result = new List<LevelCatalogEntry>();
-            await using var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
-            await conn.OpenAsync(ct);
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT download_link, preview, name FROM levels ORDER BY name COLLATE NOCASE";
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
-                result.Add(new LevelCatalogEntry(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
-            return result;
+            _diagnostics?.Warn("Catalog", "Remote JSON catalog unavailable; using bundled catalog.", ex.Message);
+            return await LoadBundledJsonAsync(ct);
         }
-        finally
+    }
+
+    private static IReadOnlyList<LevelCatalogEntry> DeserializeCatalog(byte[] bytes) =>
+        JsonSerializer.Deserialize<List<LevelCatalogEntry>>(bytes) ?? new List<LevelCatalogEntry>();
+
+    private static bool IsSqliteRuntimeFailure(Exception ex)
+    {
+        for (Exception? current = ex; current is not null; current = current.InnerException)
         {
-            try { File.Delete(dbPath); } catch { }
+            if (current is FileNotFoundException or FileLoadException or DllNotFoundException or BadImageFormatException or TypeInitializationException)
+                return true;
+
+            var text = current.Message;
+            if (text.Contains("Microsoft.Data.Sqlite", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("SQLitePCLRaw", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("e_sqlite3", StringComparison.OrdinalIgnoreCase))
+                return true;
         }
+
+        return false;
     }
 
     private static async Task<IReadOnlyList<LevelCatalogEntry>> LoadBundledJsonAsync(CancellationToken ct)

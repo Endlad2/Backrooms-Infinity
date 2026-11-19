@@ -45,6 +45,8 @@ public sealed class ChunkSceneBuilder
                 entityNode.Scale = ToGodot(entity.Transform.Scale);
             entityNode.SetMeta("entity_id", entity.Id);
             entityNode.SetMeta("runtime_id", $"{instancePrefix}/{entity.Id}");
+            if (entity.Properties.TryGetValue("item_id", out var itemId))
+                entityNode.SetMeta("item_id", itemId);
 
             var material = BuildPbrMaterial(entity, textureTargets.TryGetValue(entity.Id, out var extraTextures) ? extraTextures : null);
             ApplyMaterial(entityNode, material);

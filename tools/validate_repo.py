@@ -14,7 +14,8 @@ def ok(msg: str) -> None: infos.append(msg)
 required = [
     'project.godot', 'Main.tscn', 'Backrooms.Infinity.csproj', 'levels.db.zip',
     'data/catalog.json', 'src/App/MainController.cs', 'src/App/DebuggerOverlay.cs',
-    'src/App/GameWorld.cs', 'shaders/vhs.gdshader',
+    'src/App/GameWorld.cs', 'src/App/GdScriptHost.cs', 'src/App/GdScriptContext.cs',
+    'src/App/LevelScriptRuntime.cs', 'src/App/SqliteCatalogReader.cs', 'docs/GDSCRIPT_API.md', 'shaders/vhs.gdshader',
     'assets/common/vcrosdmonorus_vhsicons.ttf', 'assets/common/FONT-COPYRIGHT.txt',
     'assets/menu/level4.png', 'assets/menu/level8.png', 'assets/menu/level10.png',
     'assets/menu/Backrooms - Level 4.mp3', 'assets/menu/Backrooms - Level 8.mp3',
@@ -57,6 +58,31 @@ for p in (ROOT / 'src').rglob('*.cs'):
     if 'Engine.GetFramesPerSecond()' in text and 'Godot.Engine.GetFramesPerSecond()' not in text:
         fail(f'unqualified Engine.GetFramesPerSecond() can resolve to Backrooms.Engine namespace in {p.relative_to(ROOT)}')
 
+# Script runtime / SQLite fallback regression checks.
+model = (ROOT/'src/Core/Levels/LevelModel.cs').read_text('utf-8', errors='replace')
+parser = (ROOT/'src/Core/Levels/LevelParser.cs').read_text('utf-8', errors='replace')
+gdhost = (ROOT/'src/App/GdScriptHost.cs').read_text('utf-8', errors='replace')
+catalog = (ROOT/'src/App/LevelCatalogService.cs').read_text('utf-8', errors='replace')
+csproj = (ROOT/'Backrooms.Infinity.csproj').read_text('utf-8', errors='replace')
+if 'LevelScriptType' not in model: fail('LevelScriptType enum missing')
+if 'Every <script> must declare type=' not in parser: fail('parser does not require explicit script type')
+if 'new GDScript' not in gdhost or '.Reload()' not in gdhost or '.New()' not in gdhost:
+    fail('runtime GDScript compile/instantiate path missing')
+if 'CatalogJsonUri' not in catalog or 'IsSqliteRuntimeFailure' not in catalog:
+    fail('SQLite runtime fallback to JSON catalog missing')
+if '<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>' not in csproj:
+    fail('CopyLocalLockFileAssemblies must be true for Godot NuGet runtime dependencies')
+if '<EnableDynamicLoading>true</EnableDynamicLoading>' not in csproj:
+    fail('EnableDynamicLoading must be true for Godot .NET runtime dependencies')
+
+# UI/input regression checks.
+settings_panel = (ROOT/'src/App/SettingsPanel.cs').read_text('utf-8', errors='replace')
+game_world = (ROOT/'src/App/GameWorld.cs').read_text('utf-8', errors='replace')
+if 'CustomMinimumSize = new Vector2(720, 470)' not in settings_panel or 'SizeFlagsVertical = SizeFlags.ExpandFill' not in settings_panel:
+    fail('settings panel is not constrained to a scrollable height suitable for the ESC menu')
+if 'MouseButton.WheelUp or MouseButton.WheelDown' not in game_world or 'hotbarSlots = 4' not in game_world:
+    fail('mouse-wheel hotbar cycling is missing')
+
 # Debugger must be wired globally.
 dbg = (ROOT/'src/App/DebuggerOverlay.cs').read_text('utf-8', errors='replace')
 main = (ROOT/'src/App/MainController.cs').read_text('utf-8', errors='replace')
@@ -94,6 +120,16 @@ for p in level_zips:
                     if eid in ids: duplicates.add(eid)
                     ids.add(eid)
             if duplicates: fail(f'{p.name}: duplicate unified entity id(s): {sorted(duplicates)[:5]}')
+            for script in root.iter('script'):
+                script_type = (script.get('type') or '').strip().lower()
+                if script_type not in {'lua', 'gdscript'}:
+                    fail(f'{p.name}: every <script> must declare type=\"lua\" or type=\"gdscript\"')
+                    continue
+                src = (script.get('src') or '').strip().lower()
+                if src and script_type == 'lua' and not src.endswith('.lua'):
+                    fail(f'{p.name}: type=lua script must use .lua source: {src}')
+                if src and script_type == 'gdscript' and not src.endswith('.gd'):
+                    fail(f'{p.name}: type=gdscript script must use .gd source: {src}')
     except Exception as e:
         fail(f'{p.name}: {type(e).__name__}: {e}')
 

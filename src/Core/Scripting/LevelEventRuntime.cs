@@ -4,13 +4,13 @@ namespace Backrooms.Engine.Scripting;
 
 public sealed class LevelEventRuntime
 {
-    private readonly LuaHost _lua;
+    private readonly ILevelScriptRuntime _scripts;
     private readonly LevelPackage _package;
     private readonly Dictionary<(string Event, string EntityId), List<ScriptBinding>> _bindings = new();
 
-    public LevelEventRuntime(LuaHost lua, LevelPackage package)
+    public LevelEventRuntime(ILevelScriptRuntime scripts, LevelPackage package)
     {
-        _lua = lua;
+        _scripts = scripts;
         _package = package;
 
         foreach (var chunk in package.Definition.Chunks)
@@ -30,12 +30,12 @@ public sealed class LevelEventRuntime
 
     public void Emit(string eventName, string entityId)
     {
-        _lua.Emit(eventName, entityId);
+        _scripts.Emit(eventName, entityId);
 
         if (_bindings.TryGetValue((eventName, entityId), out var list))
         {
             foreach (var binding in list)
-                _lua.ExecuteBinding(_package, binding, entityId);
+                _scripts.ExecuteBinding(_package, binding, entityId);
         }
     }
 }

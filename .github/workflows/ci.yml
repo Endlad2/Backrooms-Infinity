@@ -33,6 +33,14 @@ jobs:
       - name: Build Release
         run: dotnet build Backrooms.Infinity.csproj -c Release --no-restore
 
+      - name: Verify managed/native NuGet runtime dependencies are copied
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$(find bin/Debug -type f -name 'Microsoft.Data.Sqlite.dll' -print -quit)"
+          test -n "$(find bin/Debug -type f \( -name 'libe_sqlite3.so' -o -name 'e_sqlite3.dll' -o -name 'libe_sqlite3.dylib' \) -print -quit)"
+          test -n "$(find bin/Debug -type f -name 'MoonSharp.Interpreter.dll' -print -quit)"
+
       - name: Download Godot 4.7.2 .NET editor
         shell: bash
         run: |

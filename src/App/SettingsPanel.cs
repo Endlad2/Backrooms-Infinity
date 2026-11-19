@@ -21,9 +21,14 @@ public sealed partial class SettingsPanel : PanelContainer
 
     public override void _Ready()
     {
-        CustomMinimumSize = new Vector2(720, 620);
+        CustomMinimumSize = new Vector2(720, 470);
         AddThemeStyleboxOverride("panel", GodotTheme.PanelStyle(new Color(0.025f,0.025f,0.02f,0.97f), 8));
-        var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(680, 580) };
+        var scroll = new ScrollContainer
+        {
+            CustomMinimumSize = new Vector2(680, 430),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill
+        };
         AddChild(scroll);
         _list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         scroll.AddChild(_list);

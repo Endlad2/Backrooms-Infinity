@@ -7,12 +7,12 @@
 - единый `Main.tscn` и `MainController.cs`;
 - меню с VHS-шрифтом, панорамированием/зумом фоновых изображений и соответствующим ambient;
 - «Одиночная игра» загружает `levels.db.zip` из `raw.githubusercontent.com/Endlad2/Backrooms-Infinity/main/levels.db.zip`, показывает карточки/preview и зелёный `ГОТОВ` для скачанных ZIP;
-- ZIP/XML/Lua level API, `chunks size`, позиции относительно центра чанка, общий namespace ID для object/model;
-- генераторы `grid`, `finite`, `axis`, `custom` через init Lua;
+- ZIP/XML scripting API with explicit `type="lua"` / `type="gdscript"`, `chunks size`, позиции относительно центра чанка, общий namespace ID для object/model;
+- генераторы `grid`, `finite`, `axis`, `custom` через init Lua; GDScript runtime доступен для специальных случаев;
 - runtime **glTF/GLB, FBX и OBJ**: glTF/FBX через Godot runtime document API, OBJ через встроенный C# runtime loader;
 - PBR на `StandardMaterial3D` (albedo/normal/roughness/metallic/AO/emission);
-- `.gdshader` shaders уровня + Lua shader bridge;
-- F3 debugger с Info/Warning/Error, автопоказом при engine/parser/Lua error и runtime-статистикой;
+- `.gdshader` shaders уровня + Lua/GDScript shader bridge;
+- F3 debugger с Info/Warning/Error, автопоказом при engine/parser/Lua/GDScript error и runtime-статистикой;
 - VHS post-process + timestamp, head bob;
 - Ctrl sprint, Shift crouch, E inventory, Q dismantle, 1–4 hotbar, ESC pause;
 - настройки доступны и из главного меню, и из ESC → Настройки; клавиши переназначаются;

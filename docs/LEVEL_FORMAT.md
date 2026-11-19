@@ -51,7 +51,7 @@ Attributes:
 Optional children:
 
 - `<meta>`
-- `<script class="init">`
+- `<script class="init" type="lua|gdscript">`
 - `<chunks>`
 
 ## Metadata
@@ -70,13 +70,13 @@ Runs before chunk generation is planned.
 External:
 
 ```xml
-<script class="init" src="scripts/init.lua" />
+<script type="lua" class="init" src="scripts/init.lua" />
 ```
 
 Inline:
 
 ```xml
-<script class="init"><![CDATA[
+<script type="lua" class="init"><![CDATA[
   log.info("init")
   generator.grid(3)
 ]]></script>
@@ -112,7 +112,7 @@ Allowed children:
 - `<model>`
 - `<texture target="...">`
 - `<shader target="...">`
-- `<script>`
+- `<script type="lua">`
 
 ## Primitive object
 
@@ -131,7 +131,7 @@ Allowed children:
     <param name="strength" value="0.2" />
   </shader>
 
-  <script event="hover" src="scripts/wall_hover.lua" />
+  <script type="lua" event="hover" src="scripts/wall_hover.lua" />
 </object>
 ```
 
@@ -154,7 +154,7 @@ Transform may also be written directly:
 <model id="office_model" src="models/office.glb">
   <transform position="0 0 0" />
   <texture slot="albedo" src="textures/override.png" />
-  <script event="click" src="scripts/click.lua" />
+  <script type="lua" event="click" src="scripts/click.lua" />
 </model>
 ```
 
@@ -245,20 +245,30 @@ Shader files are WGSL by default. The renderer boundary is designed for runtime 
 
 ## Scripts
 
+Every `<script>` must declare `type="lua"` or `type="gdscript"`. There is no implicit default. External Lua scripts must use `.lua`; external GDScript scripts must use `.gd`. Lua is recommended for normal level content; runtime GDScript is intended for exceptional Godot-specific behavior.
+
 External:
 
 ```xml
-<script event="hover" src="scripts/hover.lua" />
+<script type="lua" event="hover" src="scripts/hover.lua" />
 ```
 
 Inline:
 
 ```xml
-<script event="click"><![CDATA[
+<script type="lua" event="click"><![CDATA[
   log.info("clicked " .. self)
   world.set_visible(self, false)
 ]]></script>
 ```
+
+GDScript example:
+
+```xml
+<script type="gdscript" event="click" src="scripts/special.gd" />
+```
+
+See `docs/GDSCRIPT_API.md` for the runtime GDScript contract and security notes.
 
 Common event names reserved by convention:
 

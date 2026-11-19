@@ -23,6 +23,8 @@ public sealed partial class GameWorld : Node3D
     private readonly GodotRendererBridge _renderer;
     private readonly UiState _luaUi = new();
     private readonly LuaHost _lua;
+    private readonly GdScriptHost _gdScript;
+    private readonly LevelScriptRuntime _scripts;
     private readonly LevelEventRuntime _events;
     private readonly GameSession _session;
     private readonly Dictionary<string, Node3D> _chunks = new(StringComparer.Ordinal);
@@ -64,8 +66,11 @@ public sealed partial class GameWorld : Node3D
         _runtimeWorld = new RuntimeWorld(diagnostics);
         _renderer = new GodotRendererBridge(diagnostics);
         _lua = new LuaHost(diagnostics, _runtimeWorld, _luaUi, _renderer, _generator);
-        _lua.RunInit(package);
-        _events = new LevelEventRuntime(_lua, package);
+        var gdContext = new GdScriptContext(diagnostics, _runtimeWorld, _luaUi, _renderer, _generator);
+        _gdScript = new GdScriptHost(diagnostics, gdContext);
+        _scripts = new LevelScriptRuntime(diagnostics, _lua, _gdScript);
+        _scripts.RunInit(package);
+        _events = new LevelEventRuntime(_scripts, package);
         _session = new GameSession(package.Definition, settings, diagnostics);
         _session.Notification += Notify;
     }
@@ -196,6 +201,17 @@ public sealed partial class GameWorld : Node3D
                 _session.Player.SelectedHotbarSlot = ((int)key.Keycode - (int)Key.Key1);
                 _inventoryUi.Refresh();
             }
+        }
+
+        if (@event is InputEventMouseButton wheel && wheel.Pressed && !_paused && !_inventoryUi.InventoryOpen && !_inventoryUi.WorkbenchOpen &&
+            wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+        {
+            const int hotbarSlots = 4;
+            var step = wheel.ButtonIndex == MouseButton.WheelDown ? 1 : -1;
+            _session.Player.SelectedHotbarSlot = (_session.Player.SelectedHotbarSlot + step + hotbarSlots) % hotbarSlots;
+            _inventoryUi.Refresh();
+            GetViewport().SetInputAsHandled();
+            return;
         }
 
         if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left && !_paused && !_inventoryUi.InventoryOpen && !_inventoryUi.WorkbenchOpen)

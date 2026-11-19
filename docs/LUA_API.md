@@ -1,5 +1,7 @@
 # Lua API
 
+Lua XML scripts must explicitly declare `type="lua"`; there is no implicit scripting language.
+
 Lua is executed with MoonSharp's soft sandbox. Level Lua does not automatically get unrestricted OS/file/process/network APIs.
 
 ## Global `self`

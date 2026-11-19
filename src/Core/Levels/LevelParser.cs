@@ -138,16 +138,20 @@ public sealed class LevelParser
         if (node is null)
             return null;
 
+        var type = ParseScriptType(node);
         var src = node.Attribute("src")?.Value?.Trim();
         var inline = string.IsNullOrWhiteSpace(node.Value) ? null : node.Value;
 
         if (!string.IsNullOrWhiteSpace(src))
+        {
             EnsureZipAsset(archive, src, "init script");
+            ValidateScriptExtension(type, src, "init script");
+        }
 
         if (src is null && inline is null)
             _diagnostics.Warn("LevelParser", "<script class=\"init\"> is empty.");
 
-        return new InitScriptDefinition(src, inline);
+        return new InitScriptDefinition(type, src, inline);
     }
 
     private ChunkDefinition ParseChunk(XElement node, ZipArchive archive)
@@ -287,17 +291,45 @@ public sealed class LevelParser
 
     private ScriptBinding ParseScript(XElement node, ZipArchive archive, string defaultEvent)
     {
+        var type = ParseScriptType(node);
         var eventName = Optional(node, "event", defaultEvent);
         var src = node.Attribute("src")?.Value?.Trim();
         var inline = string.IsNullOrWhiteSpace(node.Value) ? null : node.Value;
 
         if (!string.IsNullOrWhiteSpace(src))
+        {
             EnsureZipAsset(archive, src, $"script for event '{eventName}'");
+            ValidateScriptExtension(type, src, $"script for event '{eventName}'");
+        }
 
         if (src is null && inline is null)
             _diagnostics.Warn("LevelParser", $"Empty script for event '{eventName}'.");
 
-        return new ScriptBinding(eventName, src, inline);
+        return new ScriptBinding(type, eventName, src, inline);
+    }
+
+
+    private static LevelScriptType ParseScriptType(XElement node)
+    {
+        var raw = node.Attribute("type")?.Value?.Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+            throw new InvalidDataException("Every <script> must declare type=\"lua\" or type=\"gdscript\".");
+
+        return raw.ToLowerInvariant() switch
+        {
+            "lua" => LevelScriptType.Lua,
+            "gdscript" => LevelScriptType.GdScript,
+            _ => throw new InvalidDataException($"Unsupported script type '{raw}'. Expected 'lua' or 'gdscript'.")
+        };
+    }
+
+    private static void ValidateScriptExtension(LevelScriptType type, string source, string context)
+    {
+        var ext = Path.GetExtension(source);
+        if (type == LevelScriptType.Lua && !string.Equals(ext, ".lua", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"{context} declares type=\"lua\" but source '{source}' is not a .lua file.");
+        if (type == LevelScriptType.GdScript && !string.Equals(ext, ".gd", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"{context} declares type=\"gdscript\" but source '{source}' is not a .gd file.");
     }
 
     private static IReadOnlyDictionary<string, string> ParseParams(XElement node) =>

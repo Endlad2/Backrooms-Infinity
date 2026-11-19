@@ -3,10 +3,10 @@
 ```text
 MainController (one executable)
   ├─ Main menu / animated background / ambient
-  ├─ LevelCatalogService -> levels.db.zip -> downloaded level ZIP
+  ├─ LevelCatalogService -> levels.db.zip (SQLite) with JSON runtime fallback -> downloaded level ZIP
   ├─ Loading screen
   ├─ LevelParser + LevelPackage
-  ├─ LuaHost -> GeneratorPlan / world / UI / shader / events
+  ├─ LevelScriptRuntime -> LuaHost (primary) / GdScriptHost (runtime special cases)
   └─ GameWorld
       ├─ CharacterBody3D + Camera3D
       ├─ ChunkPlanner + ChunkSceneBuilder
@@ -19,4 +19,4 @@ MainController (one executable)
 
 There is no launcher/client process boundary and no game-specific headless mode.
 
-Core XML/Lua/gameplay code remains engine-independent under `src/Core`. Godot-specific nodes stay in `src/App`.
+Core XML/Lua/gameplay code remains engine-independent under `src/Core`. Runtime GDScript execution and other Godot-specific bridges stay in `src/App`.

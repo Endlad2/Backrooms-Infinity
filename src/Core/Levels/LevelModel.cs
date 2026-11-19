@@ -23,7 +23,14 @@ public sealed record ShaderBinding(
     bool Enabled,
     IReadOnlyDictionary<string, string> Parameters);
 
+public enum LevelScriptType
+{
+    Lua,
+    GdScript
+}
+
 public sealed record ScriptBinding(
+    LevelScriptType Type,
     string Event,
     string? Source,
     string? InlineCode);
@@ -59,6 +66,7 @@ public sealed record ShaderTargetBinding(
     IReadOnlyDictionary<string, string> Parameters);
 
 public sealed record InitScriptDefinition(
+    LevelScriptType Type,
     string? Source,
     string? InlineCode);
 

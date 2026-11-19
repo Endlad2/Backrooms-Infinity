@@ -38,15 +38,8 @@ public sealed class LuaHost
 
     public GeneratorPlan Generator => _generator;
 
-    public void RunInit(LevelPackage package)
+    public void RunInit(LevelPackage package, InitScriptDefinition init)
     {
-        var init = package.Definition.InitScript;
-        if (init is null)
-        {
-            _diagnostics.Info("Lua", "No init script; default grid generator is active.");
-            return;
-        }
-
         try
         {
             if (!string.IsNullOrWhiteSpace(init.Source))

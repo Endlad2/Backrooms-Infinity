@@ -9,6 +9,7 @@ public sealed partial class InventoryUi : CanvasLayer
     private PanelContainer _inventoryPanel = null!;
     private PanelContainer _workbenchPanel = null!;
     private HBoxContainer _hotbar = null!;
+    private HBoxContainer _inventoryHotbar = null!;
     private GridContainer _backpack = null!;
     private GridContainer _craft2 = null!;
     private GridContainer _craft3 = null!;
@@ -79,6 +80,7 @@ public sealed partial class InventoryUi : CanvasLayer
     public void Refresh()
     {
         RefreshGrid(_hotbar, _session.Inventory.Hotbar, InventoryArea.Hotbar);
+        RefreshGrid(_inventoryHotbar, _session.Inventory.Hotbar, InventoryArea.Hotbar);
         RefreshGrid(_backpack, _session.Inventory.Backpack, InventoryArea.Backpack);
         RefreshGrid(_craft2, _session.Inventory.Crafting, InventoryArea.Crafting);
         RefreshWorkbenchGrid();
@@ -110,7 +112,22 @@ public sealed partial class InventoryUi : CanvasLayer
         root.AddChild(GodotTheme.Label("Кожаный рюкзак / слоты", 18));
         _backpack = new GridContainer { Columns = 8 }; root.AddChild(_backpack);
         for (var i = 0; i < _session.Inventory.BackpackCapacity; i++) _backpack.AddChild(NewSlot(InventoryArea.Backpack, i));
-        _hover = GodotTheme.Label("Наведи на предмет: здесь будет разбор. Q — разобрать.", 17); _hover.AutowrapMode = TextServer.AutowrapMode.WordSmart; root.AddChild(_hover);
+
+        var hotbarGap = new MarginContainer();
+        hotbarGap.AddThemeConstantOverride("margin_top", 28);
+        hotbarGap.AddThemeConstantOverride("margin_bottom", 8);
+        root.AddChild(hotbarGap);
+
+        var hotbarBlock = new VBoxContainer();
+        hotbarGap.AddChild(hotbarBlock);
+        hotbarBlock.AddChild(GodotTheme.Label("Хотбар", 18, HorizontalAlignment.Center));
+        var hotbarCenter = new CenterContainer();
+        hotbarBlock.AddChild(hotbarCenter);
+        _inventoryHotbar = new HBoxContainer();
+        hotbarCenter.AddChild(_inventoryHotbar);
+        for (var i = 0; i < InventoryState.HotbarSize; i++) _inventoryHotbar.AddChild(NewSlot(InventoryArea.Hotbar, i));
+
+        _hover = GodotTheme.Label("Наведи на предмет: здесь будет разбор. Q: разобрать.", 17); _hover.AutowrapMode = TextServer.AutowrapMode.WordSmart; root.AddChild(_hover);
     }
 
     private void BuildWorkbench()
@@ -169,10 +186,48 @@ public sealed partial class InventoryUi : CanvasLayer
         for (var i = 0; i < buttons.Length; i++)
         {
             var stack = i < items.Count ? items[i] : null;
-            buttons[i].Text = stack is null ? (area == InventoryArea.Hotbar ? $"{i + 1}\n—" : "—") : $"{(area == InventoryArea.Hotbar ? (i + 1) + "\n" : "")}{_session.Items.Get(stack.ItemId).Name}\nx{stack.Quantity}";
-            if (area == InventoryArea.Hotbar)
-                buttons[i].Modulate = i == _session.Player.SelectedHotbarSlot ? new Color(1f,0.95f,0.65f) : Colors.White;
+            buttons[i].Text = stack is null
+                ? (area == InventoryArea.Hotbar ? $"{i + 1}" : "")
+                : $"{(area == InventoryArea.Hotbar ? (i + 1) + "\n" : "")}{_session.Items.Get(stack.ItemId).Name}\nx{stack.Quantity}";
+
+            ApplySlotState(buttons[i], area == InventoryArea.Hotbar && i == _session.Player.SelectedHotbarSlot);
         }
+    }
+
+    private static void ApplySlotState(Button button, bool selected)
+    {
+        var normal = GodotTheme.PanelStyle(
+            selected ? new Color(0.24f, 0.21f, 0.07f, 0.99f) : new Color(0.06f, 0.06f, 0.045f, 0.95f),
+            3,
+            selected ? 4 : 1);
+        var hover = GodotTheme.PanelStyle(
+            selected ? new Color(0.31f, 0.27f, 0.08f, 1f) : new Color(0.18f, 0.16f, 0.08f, 0.98f),
+            3,
+            selected ? 4 : 1);
+        var pressed = GodotTheme.PanelStyle(
+            selected ? new Color(0.36f, 0.31f, 0.09f, 1f) : new Color(0.22f, 0.20f, 0.10f, 0.98f),
+            3,
+            selected ? 4 : 1);
+
+        if (selected)
+        {
+            var highlight = new Color(1f, 0.90f, 0.34f, 1f);
+            normal.BorderColor = highlight;
+            hover.BorderColor = highlight;
+            pressed.BorderColor = highlight;
+            button.AddThemeColorOverride("font_color", new Color(1f, 0.96f, 0.72f));
+            button.AddThemeColorOverride("font_hover_color", Colors.White);
+        }
+        else
+        {
+            button.AddThemeColorOverride("font_color", GodotTheme.Ink);
+            button.AddThemeColorOverride("font_hover_color", new Color(1f, 0.96f, 0.72f));
+        }
+
+        button.AddThemeStyleboxOverride("normal", normal);
+        button.AddThemeStyleboxOverride("hover", hover);
+        button.AddThemeStyleboxOverride("pressed", pressed);
+        button.Modulate = Colors.White;
     }
 
     private void RefreshHoverText()
@@ -182,7 +237,7 @@ public sealed partial class InventoryUi : CanvasLayer
         if (stack is null) { _hover.Text = "Пустой слот"; return; }
         var def = _session.Items.Get(stack.ItemId);
         var breakdown = def.Materials.Count == 0 ? "не разбирается" : string.Join(", ", def.Materials.Select(x => $"{_session.Items.Get(x.Key).Name} x{x.Value}"));
-        _hover.Text = $"{def.Name} — {breakdown}.  Q — разобрать.";
+        _hover.Text = $"{def.Name}: {breakdown}. Q: разобрать.";
     }
 
     private void ClickWorkbench(int index)
@@ -225,7 +280,7 @@ public sealed partial class InventoryUi : CanvasLayer
         for (var i = 0; i < buttons.Length; i++)
         {
             var stack = _workbench[i];
-            buttons[i].Text = stack is null ? "—" : $"{_session.Items.Get(stack.ItemId).Name}\nx{stack.Quantity}";
+            buttons[i].Text = stack is null ? "" : $"{_session.Items.Get(stack.ItemId).Name}\nx{stack.Quantity}";
         }
     }
 }
