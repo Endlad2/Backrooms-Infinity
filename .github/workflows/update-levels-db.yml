@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       name:
-        description: "Displayed level name"
+        description: Displayed level name
         required: true
         type: string
       preview:
-        description: "HTTPS preview image URL"
+        description: Absolute HTTP(S) preview URL
         required: true
         type: string
       download_link:
-        description: "HTTPS level ZIP download URL"
+        description: Absolute HTTP(S) level ZIP URL
         required: true
         type: string
 
@@ -24,76 +24,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: '3.12'
 
-      - name: Upsert level into levels.db.zip
+      - name: Update SQLite catalog
         env:
           LEVEL_NAME: ${{ inputs.name }}
-          PREVIEW: ${{ inputs.preview }}
-          DOWNLOAD_LINK: ${{ inputs.download_link }}
+          LEVEL_PREVIEW: ${{ inputs.preview }}
+          LEVEL_DOWNLOAD: ${{ inputs.download_link }}
         run: |
-          python - <<'PY'
-          import os, sqlite3, tempfile, zipfile
-          from pathlib import Path
-          from urllib.parse import urlparse
-
-          name = os.environ["LEVEL_NAME"].strip()
-          preview = os.environ["PREVIEW"].strip()
-          download = os.environ["DOWNLOAD_LINK"].strip()
-          if not name:
-              raise SystemExit("name must not be empty")
-          for label, value in (("preview", preview), ("download_link", download)):
-              u = urlparse(value)
-              if u.scheme not in {"http", "https"} or not u.netloc:
-                  raise SystemExit(f"{label} must be an absolute HTTP(S) URL")
-
-          archive = Path("levels.db.zip")
-          with tempfile.TemporaryDirectory() as td:
-              db = Path(td) / "levels.db"
-              if archive.exists():
-                  with zipfile.ZipFile(archive, "r") as zf:
-                      try:
-                          db.write_bytes(zf.read("levels.db"))
-                      except KeyError:
-                          pass
-
-              con = sqlite3.connect(db)
-              con.execute("""
-                  CREATE TABLE IF NOT EXISTS levels (
-                      download_link TEXT NOT NULL,
-                      preview TEXT NOT NULL,
-                      name TEXT NOT NULL PRIMARY KEY COLLATE NOCASE
-                  )
-              """)
-              con.execute("""
-                  INSERT INTO levels(download_link, preview, name)
-                  VALUES(?, ?, ?)
-                  ON CONFLICT(name) DO UPDATE SET
-                      download_link = excluded.download_link,
-                      preview = excluded.preview
-              """, (download, preview, name))
-              con.commit()
-              con.close()
-
-              tmp = Path(td) / "levels.db.zip"
-              with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
-                  zf.write(db, "levels.db")
-              archive.write_bytes(tmp.read_bytes())
-          PY
+          python tools/update_catalog.py "$LEVEL_NAME" "$LEVEL_PREVIEW" "$LEVEL_DOWNLOAD"
+          python tools/validate_repo.py
 
       - name: Commit catalog
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add levels.db.zip
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add levels.db.zip data/catalog.json
           if git diff --cached --quiet; then
-            echo "No catalog changes."
+            echo 'No catalog changes.'
             exit 0
           fi
-          git commit -m "catalog: update '${{ inputs.name }}'"
-          git push origin HEAD:main
+          git commit -m "catalog: update ${{ inputs.name }}"
+          git push

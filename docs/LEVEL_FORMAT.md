@@ -311,3 +311,38 @@ world        = (162, 1, -67)
 ```
 
 This rule also works for Y-axis generators.
+
+## Inventory items and decomposition
+
+A level may extend/override the runtime item registry at root level:
+
+```xml
+<items>
+  <item id="office_chair" name="Офисный стул" kind="Furniture"
+        maxStack="1" placeable="true">
+    <decompose>
+      <material id="metal" amount="2" />
+      <material id="plastic" amount="3" />
+    </decompose>
+    <properties>
+      <property name="loot_group" value="office" />
+    </properties>
+  </item>
+</items>
+```
+
+`kind` maps to the engine `ItemKind` values (`Material`, `Tool`, `Weapon`, `Furniture`, `Consumable`, `Backpack`, `OutpostFlag`, `Misc`). Backpack definitions may set `backpackCapacity`.
+
+## Monster declarations
+
+Root-level monster metadata feeds the lightweight runtime:
+
+```xml
+<monsters>
+  <monster id="hound" name="Гончая" hostile="true"
+           walkSpeed="2.8" chaseSpeed="5.6"
+           detectionRadius="20" maxAlive="2" />
+</monsters>
+```
+
+An optional `model="models/hound.glb"` path is validated against the ZIP. This schema deliberately keeps spawn/AI data separate from a concrete rendering backend.

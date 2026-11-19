@@ -1,4 +1,4 @@
-Backrooms Infinity client/launcher source code:
+Backrooms Infinity unified Godot .NET game source code:
 PolyForm Noncommercial License 1.0.0.
 
 Third-party libraries remain under their own licenses.
@@ -8,6 +8,6 @@ Author: MrManet
 RUS: Daymarius
 VHS icons: DENIRO_pro
 
-Launcher media and the supplied font were provided as project inputs. Verify that
+Menu media and the supplied font were provided as project inputs. Verify that
 you have the rights required to redistribute all supplied media/font assets before
 publishing a public release.

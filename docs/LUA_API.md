@@ -188,7 +188,7 @@ shader.set_vec4("fog", "color", 0.8, 0.75, 0.55, 1.0)
 shader.reload("flicker")
 ```
 
-The production WebGPU backend should recreate the affected shader module/pipeline safely.
+The Godot backend applies shader state through ShaderMaterial; level shaders should use .gdshader after the engine migration.
 
 ## Event API
 
@@ -224,7 +224,7 @@ XML event scripts and Lua subscriptions can coexist.
 
 ## Mouse hover implementation contract
 
-The client should raycast from camera through mouse cursor. The hit's unified entity ID is emitted as:
+The game runtime raycasts from the camera through the cursor/crosshair. The hit's unified entity ID is emitted as:
 
 ```text
 events.Emit("hover", id)

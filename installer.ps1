@@ -1,51 +1,45 @@
 param(
-    [string]$Tag = "latest"
+    [string]$Tag = "latest",
+    [string]$Repository = "Endlad2/Backrooms-Infinity"
 )
 
 $ErrorActionPreference = "Stop"
-$Repo = "Endlad2/Backrooms-Infinity"
-$RootBase = if ($env:APPDATA) { $env:APPDATA } else { [Environment]::GetFolderPath("UserProfile") }
-$Root = Join-Path $RootBase ".backrooms_infinity"
-$Game = Join-Path $Root "game"
-$Assets = Join-Path $Root "assets"
-$Temp = Join-Path $Root "temp"
-@("levels", "models", "settings", "game", "assets", "logs", "cache", "temp") | ForEach-Object {
-    New-Item -ItemType Directory -Force -Path (Join-Path $Root $_) | Out-Null
+$root = Join-Path $env:APPDATA ".backrooms_infinity"
+$game = Join-Path $root "game"
+$assets = Join-Path $root "assets"
+$temp = Join-Path ([System.IO.Path]::GetTempPath()) ("backrooms-infinity-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $root,$game,$assets,$temp | Out-Null
+
+if ($Tag -eq "latest") {
+    $release = Invoke-RestMethod -Headers @{"User-Agent"="Backrooms-Infinity-Installer"} -Uri "https://api.github.com/repos/$Repository/releases/latest"
+    $Tag = $release.tag_name
 }
+if ([string]::IsNullOrWhiteSpace($Tag)) { throw "Release tag could not be resolved." }
 
-if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { throw "Windows ARM64 release is not published yet." }
-$arch = "win-x64"
-$asset = "Backrooms-$arch.zip"
-$url = if ($Tag -eq "latest") {
-    "https://github.com/$Repo/releases/latest/download/$asset"
-} else {
-    "https://github.com/$Repo/releases/download/$Tag/$asset"
-}
-$archive = Join-Path $Temp $asset
-Write-Host "Downloading $url"
-Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing
+$base = "https://github.com/$Repository/releases/download/$Tag"
+$gameZip = Join-Path $temp "game.zip"
+$assetZip = Join-Path $temp "assets.zip"
+Write-Host "Installing Backrooms Infinity $Tag..."
+Invoke-WebRequest -UseBasicParsing -Uri "$base/Backrooms-win-x64.zip" -OutFile $gameZip
+Invoke-WebRequest -UseBasicParsing -Uri "$base/Backrooms-user-assets.zip" -OutFile $assetZip
 
-if (Test-Path $Game) {
-    Get-ChildItem -Force $Game | Remove-Item -Recurse -Force
-}
-Expand-Archive -Path $archive -DestinationPath $Game -Force
+if (Test-Path $game) { Remove-Item -Recurse -Force $game }
+New-Item -ItemType Directory -Force -Path $game | Out-Null
+Expand-Archive -Path $gameZip -DestinationPath $game -Force
+Expand-Archive -Path $assetZip -DestinationPath $root -Force
 
-$BundledAssets = Join-Path $Game "assets"
-if (Test-Path $BundledAssets) {
-    Copy-Item (Join-Path $BundledAssets "*") $Assets -Recurse -Force
-}
+$exe = Join-Path $game "Backrooms-Infinity.exe"
+if (!(Test-Path $exe)) { throw "Installed executable not found: $exe" }
+$desktop = [Environment]::GetFolderPath("Desktop")
+$linkPath = Join-Path $desktop "Backrooms Infinity.lnk"
+$shell = New-Object -ComObject WScript.Shell
+$link = $shell.CreateShortcut($linkPath)
+$link.TargetPath = $exe
+$link.WorkingDirectory = $game
+$link.IconLocation = $exe
+$link.Description = "Backrooms Infinity"
+$link.Save()
 
-$Launcher = Join-Path $Game "Backrooms.Launcher.exe"
-if (!(Test-Path $Launcher)) { throw "Backrooms.Launcher.exe was not found after installation." }
-$Desktop = [Environment]::GetFolderPath("Desktop")
-$ShortcutPath = Join-Path $Desktop "Backrooms Infinity.lnk"
-$Shell = New-Object -ComObject WScript.Shell
-$Shortcut = $Shell.CreateShortcut($ShortcutPath)
-$Shortcut.TargetPath = $Launcher
-$Shortcut.WorkingDirectory = $Game
-$Shortcut.IconLocation = "$Launcher,0"
-$Shortcut.Save()
-
-Remove-Item $archive -Force -ErrorAction SilentlyContinue
-Write-Host "Installed to $Root"
-Write-Host "Shortcut: $ShortcutPath"
+Remove-Item -Recurse -Force $temp -ErrorAction SilentlyContinue
+Write-Host "Installed to $root"
+Write-Host "Desktop shortcut: $linkPath"

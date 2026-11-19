@@ -1,44 +1,9 @@
-# Debugger
+# F3 debugger
 
-The debugger is based on a shared `DiagnosticBus`.
+`DebuggerOverlay` is a Godot `CanvasLayer` shared by menu/loading/game.
 
-## Sources
+It opens when the configured debugger key is pressed (F3 by default), and automatically opens when a `DiagnosticSeverity.Error` is emitted. Parser errors, Lua exceptions, model/texture/shader failures and engine startup errors all flow through the same `DiagnosticBus` and log file.
 
-Diagnostics may come from:
+The overlay supports ALL/INFO/WARN/ERR filters and shows FPS, level name, loaded chunk count, player position and monster count while in-game.
 
-- XML parser/validator
-- Lua init/event scripts
-- renderer/shader compilation
-- model import
-- physics
-- networking
-- level streaming
-- launcher/client platform code
-
-## Severity
-
-- Info
-- Warning
-- Error
-
-An Error automatically opens `DebugOverlayState`.
-
-F3 toggles debugger state manually in the SDL client.
-
-## Entry shape
-
-Each entry stores:
-
-- timestamp
-- severity
-- source
-- message
-- optional detail/exception text
-
-The bus retains the newest 2000 entries.
-
-## ImGui
-
-`ImGuiDebugPanel` renders the newest entries and shows detail text on hover.
-
-The panel itself does not own SDL/WebGPU backend initialization. That stays in the platform renderer layer.
+Logs are written immediately on application startup to `.backrooms_infinity/logs/godot-*.log`.

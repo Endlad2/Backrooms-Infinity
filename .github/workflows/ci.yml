@@ -2,42 +2,51 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
-
-permissions:
-  contents: read
+  workflow_dispatch:
 
 jobs:
-  build:
+  validate-build-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
+          python-version: '3.12'
+
+      - name: Validate repository, level ZIPs and catalog
+        run: python tools/validate_repo.py
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
-
-      - name: Validate levels.db.zip
-        run: |
-          python3 - <<'PY'
-          import sqlite3, tempfile, zipfile
-          from pathlib import Path
-          with tempfile.TemporaryDirectory() as td:
-              db = Path(td) / "levels.db"
-              with zipfile.ZipFile("levels.db.zip") as zf:
-                  db.write_bytes(zf.read("levels.db"))
-              con = sqlite3.connect(db)
-              cols = [r[1] for r in con.execute("PRAGMA table_info(levels)")]
-              assert cols == ["download_link", "preview", "name"], cols
-              con.execute("SELECT download_link, preview, name FROM levels LIMIT 1").fetchall()
-              con.close()
-          PY
+          dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore Backrooms.sln
+        run: dotnet restore Backrooms.Infinity.csproj
 
-      - name: Build
-        run: dotnet build Backrooms.sln -c Release --no-restore
+      - name: Build Debug
+        run: dotnet build Backrooms.Infinity.csproj -c Debug --no-restore
+
+      - name: Build Release
+        run: dotnet build Backrooms.Infinity.csproj -c Release --no-restore
+
+      - name: Download Godot 4.7.2 .NET editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL 'https://downloads.godotengine.org/?flavor=stable&platform=linux.64&slug=mono_linux_x86_64.zip&version=4.7.2' -o godot-dotnet.zip
+          mkdir -p .godot-ci
+          unzip -q godot-dotnet.zip -d .godot-ci
+          GODOT_BIN="$(find .godot-ci -type f -name 'Godot_v4.7.2-stable_mono_linux.x86_64' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+
+      - name: Godot import check
+        run: '"$GODOT_BIN" --headless --editor --path . --quit'
+
+      - name: Godot startup smoke test
+        run: '"$GODOT_BIN" --headless --path . --quit-after 3'

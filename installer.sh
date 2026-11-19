@@ -1,78 +1,73 @@
 #!/usr/bin/env sh
 set -eu
 
-REPO="Endlad2/Backrooms-Infinity"
 TAG="${1:-latest}"
+REPO="${BACKROOMS_REPOSITORY:-Endlad2/Backrooms-Infinity}"
 ROOT="$HOME/.backrooms_infinity"
 GAME="$ROOT/game"
-ASSETS="$ROOT/assets"
-TEMP="$ROOT/temp"
-mkdir -p "$ROOT/levels" "$ROOT/models" "$ROOT/settings" "$GAME" "$ASSETS" "$ROOT/logs" "$ROOT/cache" "$TEMP"
+TMP="${TMPDIR:-/tmp}/backrooms-infinity-$$"
+mkdir -p "$ROOT" "$GAME" "$ROOT/assets" "$TMP"
+trap 'rm -rf "$TMP"' EXIT INT TERM
 
-OS="$(uname -s)"
-ARCH="$(uname -m)"
-case "$OS:$ARCH" in
-  Linux:x86_64|Linux:amd64) RID="linux-x64" ;;
-  Darwin:x86_64|Darwin:amd64) RID="osx-x64" ;;
-  Darwin:arm64|Darwin:aarch64) RID="osx-arm64" ;;
-  *) echo "Unsupported platform: $OS $ARCH" >&2; exit 2 ;;
-esac
-ASSET="Backrooms-$RID.zip"
 if [ "$TAG" = "latest" ]; then
-  URL="https://github.com/$REPO/releases/latest/download/$ASSET"
-else
-  URL="https://github.com/$REPO/releases/download/$TAG/$ASSET"
-fi
-ARCHIVE="$TEMP/$ASSET"
-echo "Downloading $URL"
-if command -v curl >/dev/null 2>&1; then
-  curl -fL "$URL" -o "$ARCHIVE"
-elif command -v wget >/dev/null 2>&1; then
-  wget -O "$ARCHIVE" "$URL"
-else
-  echo "curl or wget is required" >&2; exit 3
+  TAG="$(python3 - "$REPO" <<'PY'
+import json, sys, urllib.request
+repo=sys.argv[1]
+r=urllib.request.Request(f'https://api.github.com/repos/{repo}/releases/latest',headers={'User-Agent':'Backrooms-Infinity-Installer'})
+with urllib.request.urlopen(r, timeout=30) as f: print(json.load(f)['tag_name'])
+PY
+)"
 fi
 
-find "$GAME" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-if command -v unzip >/dev/null 2>&1; then
-  unzip -q "$ARCHIVE" -d "$GAME"
-elif command -v python3 >/dev/null 2>&1; then
-  python3 -m zipfile -e "$ARCHIVE" "$GAME"
-else
-  echo "unzip or python3 is required" >&2; exit 4
-fi
+case "$(uname -s)" in
+  Linux) ASSET="Backrooms-linux-x64.zip" ;;
+  Darwin) ASSET="Backrooms-macos-universal.zip" ;;
+  *) echo "Unsupported OS: $(uname -s)" >&2; exit 2 ;;
+esac
 
-if [ -d "$GAME/assets" ]; then
-  cp -R "$GAME/assets/." "$ASSETS/"
-fi
-chmod +x "$GAME/Backrooms.Launcher" "$GAME/Backrooms.Client" 2>/dev/null || true
+BASE="https://github.com/$REPO/releases/download/$TAG"
+python3 - "$BASE/$ASSET" "$TMP/game.zip" "$BASE/Backrooms-user-assets.zip" "$TMP/assets.zip" <<'PY'
+import sys, urllib.request
+for url,out in ((sys.argv[1],sys.argv[2]),(sys.argv[3],sys.argv[4])):
+    req=urllib.request.Request(url,headers={'User-Agent':'Backrooms-Infinity-Installer'})
+    with urllib.request.urlopen(req, timeout=120) as src, open(out,'wb') as dst:
+        while True:
+            b=src.read(1024*1024)
+            if not b: break
+            dst.write(b)
+PY
 
-if [ "$OS" = "Linux" ]; then
-  if command -v xdg-user-dir >/dev/null 2>&1; then DESKTOP="$(xdg-user-dir DESKTOP)"; else DESKTOP="$HOME/Desktop"; fi
-  mkdir -p "$DESKTOP"
-  SHORTCUT="$DESKTOP/Backrooms Infinity.desktop"
-  cat > "$SHORTCUT" <<EOF
+rm -rf "$GAME"
+mkdir -p "$GAME"
+python3 - "$TMP/game.zip" "$GAME" "$TMP/assets.zip" "$ROOT" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z: z.extractall(sys.argv[2])
+with zipfile.ZipFile(sys.argv[3]) as z: z.extractall(sys.argv[4])
+PY
+
+if [ "$(uname -s)" = "Linux" ]; then
+  EXE="$GAME/Backrooms-Infinity.x86_64"
+  chmod +x "$EXE"
+  DESKTOP_DIR="${XDG_DESKTOP_DIR:-$HOME/Desktop}"
+  mkdir -p "$DESKTOP_DIR"
+  cat > "$DESKTOP_DIR/Backrooms-Infinity.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=Backrooms Infinity
-Exec=$GAME/Backrooms.Launcher
+Exec=$EXE
 Path=$GAME
 Terminal=false
 Categories=Game;
-EOF
-  chmod +x "$SHORTCUT"
-  command -v gio >/dev/null 2>&1 && gio set "$SHORTCUT" metadata::trusted true >/dev/null 2>&1 || true
+DESKTOP
+  chmod +x "$DESKTOP_DIR/Backrooms-Infinity.desktop"
 else
-  DESKTOP="$HOME/Desktop"
-  mkdir -p "$DESKTOP"
-  SHORTCUT="$DESKTOP/Backrooms Infinity.command"
-  cat > "$SHORTCUT" <<EOF
-#!/bin/sh
-cd "$GAME"
-exec "$GAME/Backrooms.Launcher"
-EOF
-  chmod +x "$SHORTCUT"
+  APP="$(find "$GAME" -maxdepth 2 -type d -name '*.app' | head -n 1 || true)"
+  [ -n "$APP" ] || { echo "macOS .app not found in release" >&2; exit 3; }
+  DESKTOP_DIR="$HOME/Desktop"
+  mkdir -p "$DESKTOP_DIR"
+  COMMAND="$DESKTOP_DIR/Backrooms Infinity.command"
+  printf '#!/bin/sh\nopen %s\n' "$(printf '%s' "$APP" | sed 's/ /\\ /g')" > "$COMMAND"
+  chmod +x "$COMMAND"
 fi
 
-rm -f "$ARCHIVE"
-echo "Installed to $ROOT"
+echo "Installed Backrooms Infinity $TAG to $ROOT"

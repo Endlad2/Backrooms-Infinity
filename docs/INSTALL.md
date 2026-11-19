@@ -1,21 +1,32 @@
 # Installation
 
-## Windows
+Backrooms Infinity is a single Godot .NET application. There are no separate launcher/client executables.
 
-Run `installer.ps1` from the repository/release. By default it downloads the latest platform release. To install a specific tag:
+## From source
 
-```powershell
-./installer.ps1 -Tag v0.1.0
+Requirements:
+
+- Godot 4.7.2 .NET
+- .NET 8 SDK
+- Git (only needed for normal repository work)
+
+```bash
+dotnet restore Backrooms.Infinity.csproj
+dotnet build Backrooms.Infinity.csproj -c Debug
 ```
 
-It installs into `%APPDATA%/.backrooms_infinity`, unpacks the release into `game/`, mirrors bundled assets into `assets/`, and creates `Backrooms Infinity.lnk` on the desktop.
+Open `project.godot` in the Godot .NET editor and run `Main.tscn`.
 
-## Linux/macOS
+## User data
 
-```sh
-chmod +x installer.sh
-./installer.sh
-# or: ./installer.sh v0.1.0
-```
+Windows: `%APPDATA%/.backrooms_infinity/`
 
-Linux installs to `~/.backrooms_infinity` and creates a desktop `.desktop` launcher. macOS gets a desktop `.command` launcher. The release is self-contained, so users do not need to install the .NET runtime separately.
+Linux/macOS: `~/.backrooms_infinity/`
+
+The game creates `levels/`, `models/`, `settings/`, `game/`, `assets/`, `logs/`, `cache/` and `temp/` beneath that root.
+
+## Release install
+
+`installer.ps1` and `installer.sh` download a tagged GitHub release, unpack the one Godot export into `.backrooms_infinity/game/`, copy the bundled menu/font assets to `.backrooms_infinity/assets/`, and create a desktop shortcut/launcher.
+
+There is no game-specific `--headless` command-line mode. F3 opens the in-game debugger.

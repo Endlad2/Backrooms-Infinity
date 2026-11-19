@@ -2,11 +2,11 @@
 
 ## CI
 
-`.github/workflows/ci.yml` checks the SQLite schema in `levels.db.zip`, restores and builds the .NET 10 solution. Checkout uses full history because the launcher build generates contributor counts from Git history.
+`.github/workflows/ci.yml` performs repository validation, restores/builds `Backrooms.Infinity.csproj` with .NET 8 and asks the Godot 4.7.2 .NET editor to import the project in CI. Godot's own `--headless --editor` switch is used only by CI automation; the shipped game has no headless gameplay mode.
 
 ## Catalog update
 
-`.github/workflows/update-levels-db.yml` is manual (`workflow_dispatch`) with inputs:
+`.github/workflows/update-levels-db.yml` is manual (`workflow_dispatch`) and accepts:
 
 ```text
 name
@@ -14,23 +14,10 @@ preview
 download_link
 ```
 
-It UPSERTs the row into the root `levels.db.zip` and pushes the result to `main`.
+It validates the URLs, UPSERTs the row in the SQLite `levels.db`, repacks `levels.db.zip`, regenerates `data/catalog.json`, and commits the updated catalog.
 
 ## Manual release
 
-`.github/workflows/release.yml` is manual and accepts:
+`.github/workflows/release.yml` is manual and accepts a Git tag such as `v0.1.0`. It builds the single Godot project and exports platform packages. There are no Launcher/Client artifacts.
 
-```text
-tag = v0.1.0
-```
-
-It publishes launcher + client into one **self-contained** directory for:
-
-- win-x64
-- linux-x64
-- osx-x64
-- osx-arm64
-
-Each runtime becomes `Backrooms-<rid>.zip`. The workflow also attaches `installer.ps1` and `installer.sh`, then creates the GitHub Release for the supplied tag.
-
-Self-contained artifacts are intentional: the installers can put `game/` on a clean machine without a preinstalled .NET runtime.
+The release also attaches `installer.ps1` and `installer.sh`.

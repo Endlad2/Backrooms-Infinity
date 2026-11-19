@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://fr1crr32g5i3"
+path="res://.godot/imported/Backrooms - Level 10.mp3-e6b6ae45963c2f532158abb0078686d8.mp3str"
+
+[deps]
+
+source_file="res://assets/menu/Backrooms - Level 10.mp3"
+dest_files=["res://.godot/imported/Backrooms - Level 10.mp3-e6b6ae45963c2f532158abb0078686d8.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

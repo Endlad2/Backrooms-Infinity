@@ -1,122 +1,70 @@
-# Backrooms Infinity
+# Backrooms Infinity — Godot .NET
 
-A moddable Backrooms game/runtime built with C# / .NET 10, SDL3, WebGPU (Silk.NET), Assimp, JoltPhysicsSharp, ImGui.NET and Lua/MoonSharp.
+Единый проект игры на **Godot 4.7.2 .NET / C#**. Отдельных Launcher/Client бинарников больше нет: главное меню, каталог уровней, загрузка ZIP, игра, настройки и debugger работают в одном процессе и одном `Backrooms.Infinity.csproj`.
 
-The repository is licensed under **PolyForm Noncommercial 1.0.0**. Launcher and client are separate executable projects; low-level third-party APIs stay behind engine boundaries so level/game logic remains small and AI-friendly.
+## Что внутри
 
-## Repository layout
+- единый `Main.tscn` и `MainController.cs`;
+- меню с VHS-шрифтом, панорамированием/зумом фоновых изображений и соответствующим ambient;
+- «Одиночная игра» загружает `levels.db.zip` из `raw.githubusercontent.com/Endlad2/Backrooms-Infinity/main/levels.db.zip`, показывает карточки/preview и зелёный `ГОТОВ` для скачанных ZIP;
+- ZIP/XML/Lua level API, `chunks size`, позиции относительно центра чанка, общий namespace ID для object/model;
+- генераторы `grid`, `finite`, `axis`, `custom` через init Lua;
+- runtime **glTF/GLB, FBX и OBJ**: glTF/FBX через Godot runtime document API, OBJ через встроенный C# runtime loader;
+- PBR на `StandardMaterial3D` (albedo/normal/roughness/metallic/AO/emission);
+- `.gdshader` shaders уровня + Lua shader bridge;
+- F3 debugger с Info/Warning/Error, автопоказом при engine/parser/Lua error и runtime-статистикой;
+- VHS post-process + timestamp, head bob;
+- Ctrl sprint, Shift crouch, E inventory, Q dismantle, 1–4 hotbar, ESC pause;
+- настройки доступны и из главного меню, и из ESC → Настройки; клавиши переназначаются;
+- 4-slot hotbar, 16-slot leather backpack, 2x2 crafting, 3x3 workbench, decomposition, placeables, outposts and monsters;
+- 50 level ZIP (`levels/Level-0.zip` … `Level-49.zip`) и `levels.db.zip` из предыдущей ветки сохранены.
 
-- `src/Backrooms.Launcher` — menu, animated backgrounds/ambience, online level catalog, downloads, settings, authors, client startup/loading screen.
-- `src/Backrooms.Client` — level ZIP loading, validation, Lua/init execution, generation planning and game window.
-- `src/Backrooms.Engine` — level format, Lua API, generation, diagnostics, rendering/model/physics boundaries.
-- `levels.db.zip` — ZIP containing SQLite `levels.db`, table `levels(download_link, preview, name)`.
-- `.github/workflows/update-levels-db.yml` — manual catalog updater.
-- `.github/workflows/release.yml` — manual tagged release.
-- `installer.ps1` / `installer.sh` — install latest (or selected tag) release into the per-user game directory.
-- `docs/` — level/Lua/API/architecture/release documentation.
+## Важно про headless
 
-## User data directory
+У игры **нет собственного `--headless` режима и консольного headless-клиента**. Это сознательно удалено вместе с разделением Launcher/Client. GitHub Actions может использовать служебный `godot --headless --editor` только для CI/import проверки движком — это не игровой режим и не пользовательский CLI.
 
-Windows:
-
-```text
-%APPDATA%/.backrooms_infinity/
-```
-
-Linux/macOS:
-
-```text
-~/.backrooms_infinity/
-```
-
-Layout:
+## Структура
 
 ```text
-.backrooms_infinity/
-├── levels/       downloaded level ZIPs: {display name}.zip
-├── models/       user/runtime model storage
-├── settings/     settings.json
-├── game/         unpacked GitHub release contents
-├── assets/       launcher PNG/MP3, VHS font and FONT-COPYRIGHT.txt
-├── logs/         launcher/client logs
-├── cache/        levels.db.zip and preview cache
-└── temp/         temporary files
+Backrooms-Infinity/
+├─ project.godot
+├─ Main.tscn
+├─ Backrooms.Infinity.csproj
+├─ src/
+│  ├─ App/                 Godot UI / 3D / loader / debugger
+│  └─ Core/                XML, Lua, generation, gameplay
+├─ shaders/vhs.gdshader
+├─ assets/                 VHS font + menu media
+├─ levels/                 Level-0..49.zip + previews
+├─ levels.db.zip
+├─ docs/
+├─ installer.ps1 / .sh
+└─ .github/workflows/
 ```
 
-`AppPaths.ResolveAsset()` prefers `~/.backrooms_infinity/assets` / `%APPDATA%/.../assets`, then falls back to assets beside the executable for development builds.
+## Запуск
 
-## Launcher
-
-The main menu uses the bundled VHS font for all text and centers four buttons:
-
-- **Одиночная игра**
-- **Сетевая игра** — currently shows “not implemented”.
-- **Настройки**
-- **Авторы**
-
-The background continuously pans/zooms through the supplied images and plays the matching ambience through SDL_mixer.
-
-Singleplayer downloads:
-
-```text
-https://raw.githubusercontent.com/Endlad2/Backrooms-Infinity/main/levels.db.zip
-```
-
-while displaying a loading indicator. Each catalog row becomes a preview card; the level name is rendered in the lower-right corner. Already downloaded levels show green **Готов** in the upper-left corner. Preview images are cached.
-
-Clicking a card downloads an absent level to `levels/{name}.zip`, then starts the client. The client immediately opens its log and performs ZIP/XML/Lua/generation preparation without creating the game window. Structured startup stages are streamed over redirected stdout/stderr to the still-visible launcher. The launcher shows the level name, current stage and a Minecraft-Bedrock-inspired loading panel over the same moving background/ambience. When the client emits its READY marker and creates the game window, the launcher hides until the client exits.
-
-## Contributors / “Авторы”
-
-`tools/Backrooms.ContributorsGen` is a build-time tool. Before launcher compilation it runs `git shortlog`, calculates every contributor's commit count, sorts descending, serializes the result to JSON and embeds that JSON into generated `Contributors.g.cs`. No runtime GitHub request is required by the Authors screen.
-
-CI/release checkout uses full Git history (`fetch-depth: 0`) so the counts include repository history.
-
-## Build
-
-Install .NET 10 SDK:
+Нужны Godot **4.7.2 .NET** и .NET 8 SDK.
 
 ```bash
-dotnet restore Backrooms.sln
-dotnet build Backrooms.sln -c Release
+dotnet restore Backrooms.Infinity.csproj
+dotnet build Backrooms.Infinity.csproj -c Debug
 ```
 
-Example direct client run:
+Затем открыть `project.godot` в Godot .NET и запустить `Main.tscn`.
 
-```bash
-dotnet run --project src/Backrooms.Client -- \
-  --level examples/ExampleLevel.brlevel.zip \
-  --nick wanderer
-```
+## Пользовательские данные
 
-Example launcher run:
+Windows: `%APPDATA%/.backrooms_infinity/`
 
-```bash
-dotnet run --project src/Backrooms.Launcher
-```
+Linux/macOS: `~/.backrooms_infinity/`
 
-### Bundled catalog level
+Там находятся `levels/`, `settings/`, `assets/`, `logs/`, `cache/`, `temp/` и сохранение аванпостов.
 
-The repository ships `levels/Level-0.zip`, an infinite 64x64-chunk Level 0 pack with eight deterministic chunk templates (seven office/maze variants plus one real pit-grid template). Its catalog preview is `levels/previews/level-0.jpg`, and `levels.db.zip` points to both files through `raw.githubusercontent.com` URLs.
+## Level shaders после миграции
 
-## Level packs
+Старые WGSL-файлы были частью WebGPU-ветки. В Godot-версии кастомный runtime shader уровня должен иметь расширение `.gdshader`. XML/Lua shader API сохранён, но backend теперь Godot Shader/ShaderMaterial.
 
-A level is a ZIP containing `level.xml` and optional `models/`, `textures/`, `shaders/`, `scripts/`. Object/model IDs share one namespace. Entity positions are relative to the **center of the chunk**. `<script class="init">` runs before generation and controls finite/grid/axis/custom generation strategies.
+## Лицензия
 
-See `docs/LEVEL_FORMAT.md` and `docs/LUA_API.md` for the full format/API.
-
-## Rendering status
-
-The level format, parser, Lua sandbox/API, generation strategies, diagnostics/F3 state, process split, catalog/download flow, launcher UI/media layer, installers and CI/release/catalog workflows are implemented as source. The actual production 3D WebGPU renderer, full ImGui backend, Assimp GPU mesh upload and Jolt world integration remain isolated boundary layers intended for the next engine implementation phase; the project does not pretend those stubs are a finished 3D game renderer.
-
-## Supplied font/media
-
-The requested VCR OSD Mono Russian/VHS icon font and supplied launcher media are retained. Font attribution is copied to releases and installed assets as `FONT-COPYRIGHT.txt`:
-
-```text
-Author: MrManet
-RUS: Daymarius
-VHS icons: DENIRO_pro
-```
-
-Verify redistribution rights for all third-party/supplied media before a public release.
+Код репозитория — PolyForm Noncommercial 1.0.0. У сторонних ассетов могут быть собственные условия. Attribution VHS font сохранён в `assets/common/FONT-COPYRIGHT.txt`.

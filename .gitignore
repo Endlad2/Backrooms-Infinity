@@ -1,11 +1,7 @@
+.godot/
+.mono/
 bin/
 obj/
 artifacts/
-.vs/
-.idea/
 *.user
-*.suo
 *.tmp
-*.log
-.DS_Store
-Thumbs.db

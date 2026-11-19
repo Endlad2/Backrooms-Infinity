@@ -1,24 +1,25 @@
-Built from the previously supplied BackroomsProject-ready.zip and the original
-context bundle assets.
+Backrooms Infinity — verification notes
 
-Validated before packaging:
-- supplied VHS font bytes match the original font ZIP SHA-256 exactly
-- original font COPYRIGHT.txt attribution is retained as assets/common/FONT-COPYRIGHT.txt
-- supplied launcher PNG/MP3 assets are retained from the previous project archive
-- levels.db.zip is a valid ZIP containing SQLite levels.db
-- SQLite table column order is exactly: download_link, preview, name
-- all .csproj / MSBuild XML files parse as XML
-- all GitHub Actions workflow YAML files parse successfully
-- installer.sh passes `sh -n`
-- example level ZIP opens successfully
-- final project ZIP is checked with ZipFile.testzip()
+Validated in this workspace:
+- repository static validator passes;
+- exactly one C# project: Backrooms.Infinity.csproj;
+- project.godot starts Main.tscn;
+- no Backrooms.Launcher / Backrooms.Client project or game-specific --headless implementation exists in src/;
+- F3 debugger is wired through DiagnosticBus/DebugOverlayState and auto-opens on Error;
+- all Level-0.zip through Level-49.zip pass ZIP integrity checks and their level.xml parses;
+- each level keeps one unified object/model ID namespace;
+- levels.db.zip contains a readable levels.db with columns download_link, preview, name and 50 rows;
+- data/catalog.json mirrors the SQLite catalog;
+- GitHub Actions YAML parses;
+- installer.sh passes sh -n;
+- C# sources pass lexical delimiter/string/comment balance checks;
+- runtime glTF/GLB and FBX API names were checked against Godot 4.7 documentation; OBJ is handled by the included SurfaceTool loader.
 
-The sandbox used to assemble this archive does not contain a .NET SDK/compiler,
-so `dotnet build` could not be executed locally here. The included CI workflow
-restores/builds with .NET 10 and validates levels.db.zip on GitHub Actions.
+Environment limitation:
+The local sandbox does not contain the .NET SDK or Godot executable and does not allow downloading them, so a real local dotnet build / Godot Debug launch could not be executed here. CI is configured to perform restore, Debug+Release builds, Godot import, and a startup smoke test with the official Godot 4.7.2 .NET editor.
 
-Level 0 pack verification
-- levels/Level-0.zip contains level.xml, scripts/init.lua, and procedural textures.
-- level.xml declares chunks size=64 and 8 chunk templates.
-- pit_grid uses omitted floor tiles for actual gaps.
-- levels.db.zip includes Level 0 with raw.githubusercontent.com download and preview URLs.
+Compile-fix pass (2026-11-19):
+- Renamed Backrooms.Engine.Math -> Backrooms.Engine.Mathematics so System.Math is no longer shadowed.
+- Wrapped Godot CheckBox.Toggled callbacks instead of attaching Action<bool> directly.
+- Wrapped the optional Action used by message OK buttons instead of attaching Action directly to BaseButton.Pressed.
+- tools/validate_repo.py now rejects regressions of these three compile blockers.
